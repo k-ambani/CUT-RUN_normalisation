@@ -9,17 +9,13 @@
 #SBATCH --cpus-per-task=15
 #SBATCH --time=4:00:00
 #SBATCH --mem=20G
-#SBATCH --mail-user=krutika.ambani@petermac.org
 #SBATCH --mail-type=ALL
 #SBATCH --partition=rhel_short
 #SBATCH --output=bam_bw_peaks_summary-%j.out
 #SBATCH --error=bam_bw_peaks_summary-%j.err
-#SBATCH --container=/config/spack/containers/centos7/container.sif
 
 # --- Setup -------------------------------------------------------------------
 
-set -xe
-source /etc/profile.d/modules.sh
 module load samtools/1.9
 
 # --- Paths -------------------------------------------------------------------

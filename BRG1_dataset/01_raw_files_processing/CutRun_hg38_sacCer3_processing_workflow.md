@@ -1,6 +1,6 @@
 # CUT&RUN Data Processing Workflow
 
-A comprehensive bioinformatics pipeline for processing CUT&RUN sequencing data with spike-in normalization using a human (hg38) and yeast (sacCer3) hybrid reference genome.
+Workflow used for processing CUT&RUN sequencing data using a human (hg38) and yeast (sacCer3) hybrid reference genome.
 
 ## Overview
 
@@ -367,7 +367,7 @@ bamCoverage \
 
 ## 7. Peak Calling (MACS2)
 
-### Without Input Control
+### Without Input Control 
 
 ```bash
 #!/bin/bash

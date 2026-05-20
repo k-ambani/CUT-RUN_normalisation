@@ -6,10 +6,8 @@
 
 #SBATCH --job-name=greenlist_norm
 #SBATCH --nodes=1
-#SBATCH --mem=50G
 #SBATCH --ntasks-per-node=20
 #SBATCH --time=10:00:00
-#SBATCH --mail-user=krutika.ambani@unimelb.edu.au
 #SBATCH --mail-type=ALL
 #SBATCH --output=greenlist_norm-%j.out
 #SBATCH --error=greenlist_norm-%j.err

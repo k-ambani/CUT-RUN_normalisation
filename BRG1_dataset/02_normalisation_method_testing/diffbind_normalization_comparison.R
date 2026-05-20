@@ -10,13 +10,6 @@
 
 # --- Environment setup -------------------------------------------------------
 
-.libPaths(
-  file.path(
-    "/team_folders/goel_lab/AprilWatt/1.RB_project/2024/CutRun",
-    "240725_MCF7M_sgER_CSS_ERvalidation_CnR/3.realign_to_human_yeast",
-    "R_analysis/renv/library/linux-rocky-9.5/R-4.4/x86_64-pc-linux-gnu"
-  )
-)
 
 library(DiffBind)
 library(tidyverse)

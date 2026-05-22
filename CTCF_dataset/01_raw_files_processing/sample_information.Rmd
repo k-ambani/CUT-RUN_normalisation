@@ -1,0 +1,218 @@
+---
+title: "Sample Information and Normalisation Setup"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```
+
+```{r libraries}
+library(tidyverse)
+library(DiffBind)
+library(magrittr)
+library(DESeq2)
+library(scales)
+```
+
+# Overview
+# Constructs sample metadata, loads BAM read counts, computes spike-in and
+# greenlist normalisation factors, and generates random group comparisons
+# for downstream DiffBind analysis.
+
+---
+
+# 1. Define directories
+
+```{r directories}
+working_dir     <- "path/to/analysis"                          # adjust to your system
+results_dir     <- file.path(working_dir, "results")
+bam_hg38_dir    <- file.path(results_dir, "bam_files/final_bams/hg38")
+peaks_dir       <- file.path(results_dir, "macs2/macs2_q0.01/with_no_neg_control/narrowPeak")
+greenlist_dir   <- file.path(working_dir, "R_analysis_final/01.Greenlist_norm_calcs")
+out_dir         <- file.path(working_dir, "R_analysis_final/02.Sample_information/data")
+```
+
+---
+
+# 2. Build sample information table
+
+```{r sample-info}
+# Collect BAM and peak file paths
+hg38_bam_files <- file.path(
+    bam_hg38_dir,
+    list.files(bam_hg38_dir, pattern = "_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm\\.bam$")
+)
+
+peak_files <- file.path(
+    peaks_dir,
+    list.files(peaks_dir, pattern = "\\.narrowPeak$")
+)
+
+# Helper: strip path prefixes and filename suffixes to get clean sample names
+clean_names <- function(paths, prefix, suffix) {
+    paths |> gsub(prefix, "", x = _) |> gsub(suffix, "", x = _)
+}
+
+bam_names  <- clean_names(hg38_bam_files, paste0(bam_hg38_dir, "/"),
+                          "_Homo_sapiens_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam")
+peak_names <- clean_names(peak_files, paste0(peaks_dir, "/"), "_peaks.narrowPeak")
+
+# Verify BAM and peak files are in matching order
+stopifnot("BAM and peak files are not in matching order" = all(peak_names == bam_names))
+
+# Clean up sample IDs
+clean_sample_ids <- function(x) {
+    x |>
+        gsub("0_6",              "0.6",   x = _) |>
+        gsub("2_5",              "2.5",   x = _) |>
+        gsub("7_5",              "7.5",   x = _) |>
+        gsub("_Homo_sapiens_OTHER_hg38_nodm6", "", x = _) |>
+        gsub("_PS_HsDm_CTCF",   "",      x = _) |>
+        gsub("_Cut_and_Run",     "",      x = _) |>
+        gsub("0602_",            "",      x = _) |>
+        gsub("_GSM",             "-GSM",  x = _)
+}
+
+SampleID <- clean_sample_ids(bam_names)
+
+# Assemble sample table
+sample_information <- data.frame(
+    SampleID   = SampleID,
+    bamReads   = hg38_bam_files,
+    Peaks      = peak_files,
+    PeakCaller = "narrow",     # narrow peak caller appropriate for transcription factors
+    CellLine   = "K562"
+) |>
+    separate(SampleID, into = c("Antibody", "Condition"), sep = "_", remove = FALSE)
+```
+
+---
+
+# 3. Load and join BAM count summary (spike-in normalisation)
+
+```{r bam-counts}
+summary_bam_counts <- read_tsv(file.path(results_dir, "summary_hg38_dm6_bam_counts.txt"))
+
+# Column names are stored space-separated in the first column header — reshape
+col_names <- names(summary_bam_counts) |> strsplit(split = " ") |> unlist()
+summary_bam_counts <- separate(summary_bam_counts, 1, into = col_names, sep = " ")
+
+# Clean sample IDs to match sample_information
+summary_bam_counts$basename <- clean_sample_ids(summary_bam_counts$basename)
+
+summary_bam_counts <- summary_bam_counts |>
+    separate(basename, into = c("Antibody", "Condition"), sep = "_", remove = FALSE)
+
+# Convert BAM count columns to numeric
+bam_count_cols <- grepl("bam_count", colnames(summary_bam_counts))
+summary_bam_counts[, bam_count_cols] <- lapply(
+    summary_bam_counts[, bam_count_cols], as.numeric
+)
+
+# Spike-in (dm6) normalisation factor: scale relative to mean dm6 read depth
+summary_bam_counts$dm6_reads_norm_scale <-
+    summary_bam_counts$dm6_intermediate_bam_counts /
+    mean(summary_bam_counts$dm6_intermediate_bam_counts)
+
+# Join to sample table and compute library size normaliser
+sample_information <- full_join(sample_information, summary_bam_counts, by = c("Antibody", "Condition"))
+sample_information$lib_size_normaliser_calc <-
+    sample_information$hg38_final_bam_counts /
+    mean(sample_information$hg38_final_bam_counts)
+```
+
+---
+
+# 4. Filter samples
+
+```{r filter-samples}
+# Remove CTCF-disrupted control (not part of time-course comparisons)
+# Remove 5s time point (low alignment rate)
+sample_information <- sample_information |>
+    filter(!grepl("disrupted", SampleID),
+           !grepl("5s",        SampleID))
+```
+
+---
+
+# 5. Generate random group comparisons
+
+```{r random-comparisons}
+set.seed(3)
+nruns <- 30
+
+rand_combos <- data.frame(matrix(nrow = nruns, ncol = 6))
+names(rand_combos) <- c("A1", "A2", "A3", "B1", "B2", "B3")
+
+sample_information_randn <- vector("list", nruns)
+
+for (i in seq_len(nruns)) {
+    idx <- sample(nrow(sample_information), 6)
+    rand_combos[i, ] <- t(idx)
+    sample_information_randn[[i]] <- sample_information[idx, ]
+    sample_information_randn[[i]]$Factor    <- c("A", "A", "A", "B", "B", "B")
+    sample_information_randn[[i]]$Replicate <- c(1, 2, 3, 1, 2, 3)
+}
+```
+
+---
+
+# 6. Compute greenlist normalisation factors per comparison
+
+```{r greenlist-norm}
+# Load greenlist region counts (rows = genomic regions, cols = samples)
+counts_raw <- read.delim(
+    file.path(greenlist_dir, "glist_quant.tsv"),
+    header = TRUE, row.names = 1, check.names = FALSE
+)
+
+# Prepend full BAM path so columns match sample_information$bamReads
+colnames(counts_raw) <- file.path(bam_hg38_dir, paste0(colnames(counts_raw), ".bam"))
+
+for (i in seq_len(nruns)) {
+    # Subset to samples in this comparison (preserving order)
+    counts_sub <- counts_raw[, match(sample_information_randn[[i]]$bamReads,
+                                     colnames(counts_raw))]
+
+    # Estimate size factors using DESeq2's median-of-ratios method
+    sf <- estimateSizeFactorsForMatrix(counts_sub) |>
+        as.data.frame() |>
+        setNames("sf")
+    sf$greenlist_normalizer <- 1 / sf$sf
+    sf$bamReads <- rownames(sf)
+
+    sample_information_randn[[i]] <- full_join(sample_information_randn[[i]], sf,
+                                               by = "bamReads")
+}
+```
+
+---
+
+# 7. Save outputs
+
+```{r save-outputs}
+# Summary table of random comparisons
+comparison_table <- tibble(
+    run        = seq_len(nruns),
+    comparison = sapply(seq_len(nruns), function(i) {
+        b <- paste(sample_information_randn[[i]]$Condition[sample_information_randn[[i]]$Factor == "B"],
+                   collapse = ", ")
+        a <- paste(sample_information_randn[[i]]$Condition[sample_information_randn[[i]]$Factor == "A"],
+                   collapse = ", ")
+        paste(b, "vs", a) |> gsub("million", "mill", x = _)
+    })
+)
+
+write.csv(comparison_table,
+          file = file.path(out_dir, "list_of_comparisons.csv"),
+          row.names = FALSE)
+
+saveRDS(sample_information,
+        file = file.path(out_dir, "sample_information_all.rds"))
+
+saveRDS(sample_information_randn,
+        file = file.path(out_dir, "sample_information_randn.rds"))
+
+save.image(file = file.path(out_dir, "sample_information_workspace.RData"))
+```

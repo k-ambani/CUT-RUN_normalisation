@@ -16,6 +16,7 @@ This workflow processes paired-end CUT&RUN sequencing data through the following
 
 | Tool | Version | Purpose |
 |------|---------|---------|
+| FastQC | 0.11.5 | Quality control |
 | BBMap/BBDuk | 39.13 | Adapter trimming |
 | Bowtie2 | 2.3.4.1 | Read alignment |
 | SAMtools | 1.9 | BAM manipulation |

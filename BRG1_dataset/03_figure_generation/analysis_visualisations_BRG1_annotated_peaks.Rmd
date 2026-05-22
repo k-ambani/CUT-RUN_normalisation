@@ -1,0 +1,368 @@
+---
+title: "Figures for BRG1 analysis"
+subtitle: "Analysis and visualisation in one script"
+author: "Krutika"
+date: "First version - 2025-09-25; last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: cosmo
+---
+
+
+```{r, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(chipenrich)
+library(GenomicFeatures)
+library(ChIPseeker)
+library(cowplot)
+library(RColorBrewer)
+library(ggrepel)
+library(ggplot2)
+library(dplyr)
+library(tidyr)
+library(tibble)
+library(ggh4x)
+library(qs)
+```
+
+
+# Load data
+```{r}
+
+load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData")
+```
+
+```{r}
+diffbind_objs <- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RLERiP, total_counts = dbObj_RPKMnorm, spike_in=dbObj_sacCer3norm, greenlist = dbObj_greenlistnorm)
+
+
+```
+
+
+
+# Annotate peak function
+
+```{r message=FALSE, warning=FALSE}
+# load annotations
+# using gencode v35 basic as annotations. Found out that TxDb.Hsapiens.UCSC.hg38.knownGene is actually one of the latest gencode version v39 at this point. And this will keep updating. good to keep everything consistent and keep at v35
+#txdb_hg38_basic <- makeTxDbFromGFF(file = "/researchers/antonio.ahn/resources/GTF_files/gencode.v36.basic.annotation.gtf", format = "gtf")
+#txdb_hg38 <- TxDb.Hsapiens.UCSC.hg38.knownGene
+txdb_hg38  <- makeTxDbFromGFF(file = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/resources/gencode_annotations/gencode.v35.basic.annotation.gtf", format = "gtf")
+
+load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/resources/biomaRt_gene_conv/mart_aug2020.RData")
+```
+
+```{r warning=FALSE, message=FALSE}
+# change the ChIPSeeker annotations to maker smaller groups
+# for example, there is 1st Exon and Other Exon for ChIpseekers default annotations. I just want these to be labelled "Exon"
+
+# generate function for annotating peaks into simple groups. Exon, Intron, Promoter, Intergenic
+annotate_peaks <- function(anno){
+  ifelse(grepl("Exon",anno), "Exon",
+       ifelse(grepl("Intron", anno), "Intron",
+              ifelse(grepl("Promoter", anno), "Promoter",
+                     ifelse(grepl("Downstream", anno), "Intergenic",
+                            ifelse(grepl("Distal Intergenic", anno), "Intergenic",anno)))))
+}
+
+# make function to further annotate intergenic peak according to distance to TSS site
+subset_intergenic_regions <- function(peakAnno){
+# index for proximal
+index_1 <- peakAnno$annotation_simple == "Intergenic" & peakAnno$distanceToTSS < 10000 & peakAnno$distanceToTSS > -10000
+# index for distal
+index_2 <- peakAnno$annotation_simple == "Intergenic" & peakAnno$distanceToTSS >= 10000 & peakAnno$distanceToTSS < 100000 | peakAnno$annotation_simple == "Intergenic" & peakAnno$distanceToTSS <= -10000 & peakAnno$distanceToTSS > -100000
+# index for desert
+index_3 <- peakAnno$annotation_simple == "Intergenic" & peakAnno$distanceToTSS >= 100000 | peakAnno$distanceToTSS <= -100000
+
+ifelse(index_1, "Intergenic_Proximal",
+       ifelse(index_2, "Intergenic_Distal",
+              ifelse(index_3, "Intergenic_Desert", peakAnno$annotation_simple)))
+}
+
+
+# make function that annotates the peaks using the functions made previously.
+get_annotations <- function(GRanges_object){
+# annotate peak using ChIPSeeker
+GRanges_object_peakAnno <- annotatePeak(GRanges_object, tssRegion=c(-2000, 500), TxDb=txdb_hg38, genomicAnnotationPriority = c("Promoter", "5UTR", "3UTR", "Exon", "Intron", "Intergenic"))
+
+GRanges_object_peakAnno@anno$annotation_simple  <- annotate_peaks(GRanges_object_peakAnno@anno$annotation)
+
+GRanges_object_peakAnno@anno$annotation_expand <- subset_intergenic_regions(GRanges_object_peakAnno@anno)
+
+# get another annotation column where there are only 2 groups: Promoter or other
+GRanges_object_peakAnno@anno$annotation_promoter <- ifelse(GRanges_object_peakAnno@anno$annotation_simple %in% "Promoter","Promoter","Other")
+
+
+# add gene symbol
+GRanges_object_peakAnno@anno$SYMBOL <- t2g_aug2020$ext_gene[match(GRanges_object_peakAnno@anno$geneId, t2g_aug2020$ens_gene_ver)]
+
+GRanges_object_peakAnno
+}
+```
+
+
+# Extract up and down regulated peaks
+```{r, message=FALSE, warning=FALSE}
+
+
+# Function to extract up and down regulated peaks from DBA objects
+up_down_prom_nonprom_peaks <- function(dba_list, padj_threshold = 0.05) {
+  #dba_list <- diffbind_objs
+  # Initialize lists to store results
+  peaks_separated <- list()
+  
+  # Process each DBA object in the list
+  for (i in seq_along(dba_list)) {
+   # i=1
+    # Get the name of the current DBA object
+    dba_name <- names(dba_list)[i]
+    if (is.null(dba_name)) {
+      dba_name <- paste0("DBA_", i)
+    }
+    
+    # Extract the current DBA object
+    current_dba <- dba_list[[i]]
+    
+    # Get all peaks using dba.peakset
+    significant_peaks <- current_dba %>% dba.report(., th = padj_threshold)# %>% as.data.frame()
+    
+#    significant_peaks <- significant_peaks[significant_peaks$seqnames %in% paste0("chr",c(1:22,"X","Y")),]
+
+
+    # Separate up and down regulated peaks based on Fold change
+    up_peaks <- significant_peaks[significant_peaks$Fold > 0, ] %>% get_annotations() %>% as.data.frame()
+    down_peaks <- significant_peaks[significant_peaks$Fold < 0, ]%>% get_annotations() %>% as.data.frame()
+    
+    peaks_separated[[paste0(dba_name,"_up_prom_peaks")]] <- up_peaks[up_peaks$annotation_promoter=="Promoter",]
+    peaks_separated[[paste0(dba_name,"_up_nonprom_peaks")]] <- up_peaks[up_peaks$annotation_promoter!="Promoter",]
+
+    peaks_separated[[paste0(dba_name,"_down_prom_peaks")]] <- down_peaks[down_peaks$annotation_promoter=="Promoter",]
+    peaks_separated[[paste0(dba_name,"_down_nonprom_peaks")]] <- down_peaks[down_peaks$annotation_promoter!="Promoter",]
+  
+  }
+  
+  # Return a list containing both up and down peak lists
+  return(peaks_separated)
+}
+
+
+
+
+dbObj_up_down_prom_nonprom <- up_down_prom_nonprom_peaks(diffbind_objs)
+
+
+
+
+```
+
+
+# Making figure
+
+```{r}
+# Initialize the list with the correct name
+norm_diff_subset <- list()  # You had 'norm_diff_subset' but used 'subset' in the loop
+
+for(name in names(diffbind_objs)){
+  norm_diff_subset[[name]] <- dbObj_up_down_prom_nonprom[grep(name, names(dbObj_up_down_prom_nonprom))]
+}
+
+# Get nrows for each element in the nested lists
+n_rows_per_df <- lapply(norm_diff_subset, function(sublist) {
+  lapply(sublist, nrow)
+})
+
+# If you want a flattened structure showing all dataframes:
+n_peaks_df <- unlist(n_rows_per_df) %>% as.data.frame()
+colnames(n_peaks_df)<- "peak_number"
+n_peaks_df$sample <- rownames(n_peaks_df)
+rownames(n_peaks_df) <- 1:nrow(n_peaks_df)
+
+n_peaks_df$sample <- n_peaks_df$sample %>% gsub("Reads_in_peak","Reads in peak",.) %>% gsub("spike_in","Spike-in",.) %>% gsub("total_counts","Library size",.) %>% gsub("greenlist", "Greenlist",.)
+
+n_peaks_df <- n_peaks_df %>%
+  separate(sample, into = c("Norm_method","diff_peak"), sep = "[.]")
+n_peaks_df <- n_peaks_df %>% separate(diff_peak,into = c("Norm_method","direction","location"),sep="_")
+n_peaks_df$dir_loc <- paste(n_peaks_df$direction,n_peaks_df$location,sep="_")
+```
+
+
+
+```{r}
+
+chart_title = "Direction and location of differentially bound peaks"
+
+# Prepare data for mirrored bar plot
+n_peaks_df_mirror <- n_peaks_df %>%
+  mutate(
+    peak_number_plot = ifelse(grepl("down", dir_loc), -peak_number, peak_number),
+    direction = ifelse(grepl("up", dir_loc), "up", "down"),
+    location = ifelse(grepl("prom", dir_loc), "promoter", "non-promoter"),
+    label_offset = ifelse(peak_number_plot > 0, 180, -180),
+    segment_offset = ifelse(peak_number_plot > 0, 150, -150)
+  )
+
+n_peaks_df_mirror$Norm_method <- factor(n_peaks_df_mirror$Norm_method, levels = c( "Library size", "Background", "Greenlist","Reads in peak","Spike-in"))
+n_peaks_df_mirror$dir_loc <- factor(n_peaks_df_mirror$dir_loc, levels = c("up_prom","up_nonprom","down_prom","down_nonprom"))
+# Create the mirrored bar chart
+p <- ggplot(n_peaks_df_mirror, aes(x = Norm_method, y = peak_number_plot, fill = dir_loc)) +
+  geom_col(position = "stack", color = "black", linewidth = 0.5) +
+  labs(
+    title = chart_title,
+    x = "Normalisation method",
+    y = "Number of peaks",
+    fill = "Genomic Feature"
+  ) +
+  theme_minimal() +
+  theme(
+    legend.position = "right",
+    plot.title = element_text(hjust = 0.5, size = 14, face = "bold")
+  ) +
+  scale_fill_manual(
+    values = c(
+      "up_prom" = "#ea801c",
+      "up_nonprom" = "#f4b183",
+      "down_prom" = "#1a80bb",
+      "down_nonprom" = "#8dc4e8"
+    )
+  ) +
+  # Add count labels using position_stack for labels >= 70
+  geom_text(aes(label = ifelse(peak_number >= 70, peak_number, "")), 
+            position = position_stack(vjust = 0.5),
+            size = 3.5, 
+            color = "black",
+            fontface = "bold") +
+  # Add lines for small segments (peak_number < 70)
+  geom_segment(data = n_peaks_df_mirror %>% filter(peak_number > 0 & peak_number < 70),
+               aes(x = as.numeric(as.factor(Norm_method)),
+                   xend = as.numeric(as.factor(Norm_method)),
+                   y = peak_number_plot,
+                   yend = peak_number_plot + segment_offset),
+               position = position_stack(vjust = 0.5),
+               color = "black",
+               linewidth = 0.4,
+               inherit.aes = FALSE) +
+  # Add labels for small segments
+  geom_text(data = n_peaks_df_mirror %>% filter(peak_number > 0 & peak_number < 70),
+            aes(x = Norm_method,
+                y = peak_number_plot + label_offset,
+                label = peak_number),
+            position = position_stack(vjust = 0.5),
+            size = 3.5,
+            color = "black",
+            fontface = "bold",
+            inherit.aes = FALSE) +
+  # Add horizontal line at y=0
+  geom_hline(yintercept = 0, linewidth = 0.5) +
+  # Make y-axis labels absolute values
+  scale_y_continuous(labels = abs)
+
+p
+
+```
+
+
+```{r, eval=FALSE}
+
+pdf("figures_pdf/03_feature_dist.pdf", width = 7, height = 5)
+p
+dev.off()
+
+```
+
+
+
+# Chip-Enrich analysis
+
+```{r message=FALSE, echo=FALSE, warning=FALSE}
+
+chipenrich_analysis <- list()
+bubble_plot_analysis <- list()
+
+column_names <- c("Geneset.ID","FDR", "Gene_ratio","binding_loc")
+bubble_plot_df <- data.frame(matrix(ncol = length(column_names), nrow = 0))
+colnames(bubble_plot_df) <- column_names
+
+for(sep in names(dbObj_up_down_prom_nonprom)){
+print(sep) 
+chipenrich_analysis[[sep]] <- chipenrich::chipenrich(
+  peaks = dbObj_up_down_prom_nonprom[[sep]] ,
+  method='chipenrich', 
+  locusdef='nearest_tss',
+  genome = 'hg38', 
+  out_name=NULL, 
+  genesets =  "hallmark",
+  n_cores = 5)
+
+#  chipenrich_analysis[[sep]][["results_df"]] <- chipenrich_analysis[[sep]][["results"]]
+  bubble_plot_analysis[[sep]] <- chipenrich_analysis[[sep]][["results"]]  %>% dplyr::select(-Geneset.Peak.Genes) %>% as.data.frame %>% dplyr::select("Geneset.ID","FDR","Odds.Ratio")
+#  bubble_plot_analysis[[sep]]$Gene_ratio <-  bubble_plot_analysis[[sep]]$N.Geneset.Peak.Genes/bubble_plot_analysis[[sep]]$N.Geneset.Genes
+  bubble_plot_analysis[[sep]] <-   bubble_plot_analysis[[sep]] %>% dplyr::select("Geneset.ID","FDR","Odds.Ratio")
+  bubble_plot_analysis[[sep]]$binding_loc <- sep %>% gsub("_peaks", "",.) %>% gsub("Reads_in_peak","Reads in peak",.) %>% gsub("spike_in","Spike-in",.) %>% gsub("total_counts","Library size",.)  %>% gsub("greenlist","Greenlist",.) 
+bubble_plot_df <- rbind(bubble_plot_analysis[[sep]],bubble_plot_df)
+
+  }  
+
+```
+
+
+```{r, eval=FALSE}
+qsave(chipenrich_analysis,"/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/chipenrich_results.qs")
+
+```
+```{r}
+
+
+bubble_plot_df$binding_loc <- factor(bubble_plot_df$binding_loc,levels=bubble_plot_df$binding_loc %>% unique)
+bubble_plot_df <- bubble_plot_df %>% separate(binding_loc,into = c("Norm_method","direction","location"),sep="_", remove = FALSE)
+bubble_plot_df$feature <- paste(bubble_plot_df$direction,bubble_plot_df$location,sep="_")
+bubble_plot_df$Norm_method <- factor(bubble_plot_df$Norm_method,levels = c("Library size","Background","Greenlist","Reads in peak","Spike-in"))
+bubble_plot_df$Geneset.ID <- bubble_plot_df$Geneset.ID %>% gsub("HALLMARK_","",.)
+```
+
+
+# Making figure
+```{r}
+bubble_plot_df <- bubble_plot_df[bubble_plot_df$FDR < 0.05,]
+
+bubble_plot <- ggplot(bubble_plot_df, aes(x = Norm_method, y = Geneset.ID)) +
+  facet_grid(rows = vars(feature), scales = "free_y", space = "free_y") + 
+  geom_point(aes(size = Odds.Ratio, fill = FDR), shape = 21) +
+  scale_fill_gradient(low = 'darkmagenta', high = 'white', na.value = "white") +
+  labs(size = "Odds Ratio", fill = "FDR") +
+  scale_y_discrete(limits = rev(levels(bubble_plot_df$Gene_ratio))) +
+  theme_minimal() + 
+  theme(
+    legend.key = element_blank(),
+    panel.background = element_blank(), 
+    panel.border = element_rect(colour = "black", fill = NA, size = 1.2),
+    axis.text.x = element_text(colour = "black", size = 7, angle = 30, hjust = 1),
+    axis.text.y = element_text(colour = "black", size = 9),
+    legend.text = element_text(size = 10, face = "bold", colour = "black"),
+    legend.title = element_text(size = 12, face = "bold"),
+    legend.position = "right",
+    strip.background = element_rect(fill = "#D3D3D3", colour = "black"),  # Change fill color here
+    strip.text = element_text(face = "bold", size = 10)
+  ) +
+  ylab("Hallmarks Geneset ID") +
+  ggtitle("Enrichment")
+
+bubble_plot
+
+```
+
+```{r}
+
+pdf("figures_pdf/04_bubble_plot.pdf", width = 7, height = 4.5)
+bubble_plot
+dev.off()
+
+```
+
+```{r}
+sessionInfo()
+```

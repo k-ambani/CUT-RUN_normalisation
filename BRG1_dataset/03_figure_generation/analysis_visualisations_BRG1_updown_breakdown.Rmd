@@ -1,0 +1,310 @@
+---
+title: "Figures for BRG1 analysis"
+subtitle: "Analysis and visualisation in one script"
+author: "Krutika"
+date: "First version - 2025-09-25; last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: cosmo
+---
+
+
+```{r, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(chipenrich)
+library(GenomicFeatures)
+library(ChIPseeker)
+library(cowplot)
+library(RColorBrewer)
+library(ggrepel)
+library(ggplot2)
+library(UpSetR)
+library(dplyr)
+library(ComplexHeatmap)
+library(ggplot2)
+library(tidyr)
+library(tibble)
+library(ggh4x)
+library(ComplexUpset)
+
+
+```
+
+
+# Loading data
+```{r}
+
+load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData")
+```
+
+```{r}
+diffbind_objs <- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RLERiP, total_counts = dbObj_RPKMnorm, spike_in=dbObj_sacCer3norm, greenlist = dbObj_greenlistnorm)
+
+
+```
+
+
+# MA plots analysis
+```{r}
+# Function to extract MA plot data from diffbind object
+extract_MA_data <- function(diffbind_obj, norm_method_str) {
+  #diffbind_obj <- dbObj_greenlistnorm
+  COUNTS_DF <- diffbind_obj %>% dba.report(., th = 1) %>% as.data.frame()
+  COUNTS_DF <- COUNTS_DF[COUNTS_DF$seqnames %in% paste0("chr",c(1:22,"X","Y")),] # Getting XY and numerical chromosomes only. 
+  samples <- colnames(COUNTS_DF)[7:8] %>% gsub("Conc_", "", .)
+  plot_title <- paste(samples[1], samples[2], sep = " vs ")
+  
+  COUNTS_DF$plot_colour <- "unchanged"
+  COUNTS_DF$plot_colour[COUNTS_DF$Fold > 0 & COUNTS_DF$FDR < 0.05] <- "up"
+  COUNTS_DF$plot_colour[COUNTS_DF$Fold < 0 & COUNTS_DF$FDR < 0.05] <- "down"
+  
+  down_peaks <- sum(COUNTS_DF$plot_colour == "down")
+  up_peaks <- sum(COUNTS_DF$plot_colour == "up")
+  
+  # Calculate loess smoothing
+  loessMod50 <- loess(Fold ~ Conc, data = COUNTS_DF, span = 0.50)
+  COUNTS_DF$loess <- predict(loessMod50)
+  
+  # Add metadata columns
+  COUNTS_DF$norm_method <- norm_method_str
+  COUNTS_DF$plot_title <- plot_title
+  COUNTS_DF$up_peaks <- up_peaks
+  COUNTS_DF$down_peaks <- down_peaks
+  COUNTS_DF$facet_label <- paste(norm_method_str, "| up:", up_peaks, "down:", down_peaks)
+  
+  return(COUNTS_DF)
+}
+
+# Extract data from all normalization methods
+ma_data_list <- list(
+  extract_MA_data(dbObj_RPKMnorm, "Library size"),
+  extract_MA_data(dbObj_RLEbackground, "Background"),
+    extract_MA_data(dbObj_greenlistnorm, "Greenlist"),
+  extract_MA_data(dbObj_RLERiP, "Reads in peak"),
+  extract_MA_data(dbObj_sacCer3norm, "Spike-in")
+)
+
+```
+
+```{r}
+# Combine into one big dataframe
+combined_ma_data <- bind_rows(ma_data_list)
+
+# Set factor order for normalization methods
+combined_ma_data$norm_method <- factor(combined_ma_data$norm_method, 
+                                       levels = combined_ma_data$norm_method %>% unique())
+```
+
+
+# Figure generation
+
+```{r, fig.height=8, fig.width=6}
+combined_ma_data$facet_label <- factor(combined_ma_data$facet_label,
+                                       levels = unique(combined_ma_data$facet_label[order(combined_ma_data$norm_method)]))
+
+p <- ggplot(combined_ma_data) +
+  aes(Conc, Fold, color = plot_colour) +
+  geom_point(size = 0.2, show.legend = FALSE) +
+  geom_line(aes(Conc, loess), colour = "darkmagenta", linewidth = 0.5) +
+  scale_color_manual(breaks = c("up", "down", "unchanged"), 
+                     values = c("#ea801c", "#1a80bb", "lightgrey")) +
+  xlim(0, 13) +
+  ylim(-2.5, 2.5) +
+  xlab("A: log2(average intensity)") +
+  ylab("M: log2(fold change)") +
+  geom_hline(yintercept = 0, size=0.2) +
+  theme_minimal() +
+  facet_wrap2(vars(facet_label), ncol=2) +  # Remove axes and remove_labels
+  theme(
+    strip.text = element_text(size = 10),
+    axis.text = element_text(size = 8),
+    axis.title = element_text(size = 10)
+  )
+p
+```
+
+
+```{r, eval=FALSE}
+
+pdf("figures_pdf/01_MA_plots.pdf", width = 5, height = 7)
+p
+dev.off()
+
+```
+
+
+```{r}
+# Everything is plotted in this order: "library size", "background, "greenlist", "RiP, "spike-in"
+
+plotting_order <-combined_ma_data$norm_method %>% unique()
+
+```
+
+# Upset plot analysis
+
+```{r, fig.height=5}
+# Combine all data
+all_ma_data <- do.call(rbind, ma_data_list)
+
+# Create unique peak identifiers
+all_ma_data$peak_id <- paste(all_ma_data$seqnames, all_ma_data$start, all_ma_data$end, sep = "_")
+
+# Function to prepare upset plot data
+prepare_upset_data <- function(ma_data, regulation_type = c("up", "down", "both")) {
+  regulation_type <- match.arg(regulation_type)
+  
+  if (regulation_type == "both") {
+    sig_peaks <- ma_data[ma_data$plot_colour %in% c("up", "down"), ]
+  } else {
+    sig_peaks <- ma_data[ma_data$plot_colour == regulation_type, ]
+  }
+  
+  # Create binary matrix for upset plot
+  peak_method_matrix <- sig_peaks %>%
+    dplyr::select(peak_id, norm_method) %>%
+    distinct() %>%
+    mutate(present = 1) %>%
+    tidyr::pivot_wider(names_from = norm_method, values_from = present, values_fill = 0) %>%
+    tibble::column_to_rownames("peak_id")
+  
+  return(peak_method_matrix)
+}
+
+# Prepare combined data for upset plot with regulation information
+prepare_combined_upset_data <- function(ma_data) {
+  sig_peaks <- ma_data[ma_data$plot_colour %in% c("up", "down"), ]
+  
+  # Create separate columns for up and down regulation for each method
+  combined_data <- sig_peaks %>%
+    dplyr::select(peak_id, norm_method, plot_colour) %>%
+    distinct() %>%
+    mutate(
+      method_regulation = paste(norm_method, plot_colour, sep = " ")
+    ) %>%
+    mutate(present = 1) %>%
+    dplyr::select(peak_id, method_regulation, present) %>%
+    tidyr::pivot_wider(names_from = method_regulation, values_from = present, values_fill = 0) %>%
+    tibble::column_to_rownames("peak_id")
+  
+  return(combined_data)
+}
+
+# Create combined matrix
+combined_matrix <- prepare_combined_upset_data(all_ma_data)
+
+# Reorder columns to group by regulation, then by method
+#method_order <-rev(plotting_order)
+method_order <- plotting_order %>% rev()
+
+# First collect all up-regulated columns, then all down-regulated columns
+col_order <- c()
+
+# Add all down-regulated columns first
+for (method in method_order) {
+  up_col <- paste(method, "down", sep = " ")
+  if (up_col %in% colnames(combined_matrix)) {
+    col_order <- c(col_order, up_col)
+  }
+}
+
+# Then add all up-regulated columns
+for (method in method_order) {
+  down_col <- paste(method, "up", sep = " ")
+  if (down_col %in% colnames(combined_matrix)) {
+    col_order <- c(col_order, down_col)
+  }
+}
+
+
+# Ensure all columns exist and reorder
+available_cols <- intersect(col_order, colnames(combined_matrix))
+combined_matrix <- combined_matrix[, available_cols]
+
+```
+
+
+
+
+```{r}
+
+# Convert matrix to data frame format for ComplexUpset
+upset_data <- as.data.frame(combined_matrix)
+
+# Convert 0/1 to logical TRUE/FALSE (ComplexUpset expects this)
+upset_data[] <- lapply(upset_data, as.logical)
+
+# Add row names as a column (optional, for tracking)
+upset_data$element <- rownames(combined_matrix)
+
+```
+
+
+```{r, eval=FALSE, include=FALSE}
+
+saveRDS(upset_data,"/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/6.Validating_with_RNA_ATAC/data/upset_data_summarised.rds")
+
+```
+
+# Figure generation
+
+```{r}
+
+# Create queries for each set based on whether it has "up" or "down" in the name
+set_queries <- lapply(colnames(combined_matrix), function(set_name) {
+  color <- ifelse(grepl("up", set_name), "#ea801c", "#1a80bb")
+  upset_query(set = set_name, fill = color, only_components = c('overall_sizes'))
+})
+
+
+# Create the upset plot
+upset_plot <- ComplexUpset::upset(
+  upset_data,
+  colnames(combined_matrix),
+  name = 'Intersections',
+  width_ratio = 0.25,
+  sort_sets = FALSE,
+  sort_intersections = 'descending',
+  base_annotations = list(
+    'Intersection size' = intersection_size(
+      counts = TRUE,
+      text = list(size = 2.5),
+      mapping = aes(fill = 'bars_color', color = 'bar_border')
+    ) + 
+    scale_y_continuous(breaks = seq(0, 1800, by = 100)) +
+    scale_fill_manual(values = c('bars_color' = 'lightgrey'), guide = 'none') +
+    scale_color_manual(values = c('bar_border' = 'black'), guide = 'none')
+  ),
+  set_sizes = upset_set_size() + 
+    scale_x_continuous(breaks = seq(0, 1800, by = 200)),
+  matrix = intersection_matrix(
+    geom = geom_point(size = 2)
+  ),
+    queries = set_queries
+
+)
+upset_plot
+
+
+
+```
+
+
+
+
+```{r, eval=FALSE}
+
+pdf("figures_pdf/02_upset_plot.pdf", width = 10, height = 6)
+upset_plot
+dev.off()
+
+```
+
+
+```{r}
+sessionInfo()
+```

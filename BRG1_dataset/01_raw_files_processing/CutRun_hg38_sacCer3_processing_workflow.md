@@ -6,11 +6,11 @@ Workflow used for processing CUT&RUN sequencing data using a human (hg38) and ye
 
 This workflow processes paired-end CUT&RUN sequencing data through the following steps:
 
-2. Adapter trimming (BBDuk)
-3. Alignment to hybrid genome (Bowtie2)
-4. BAM processing and filtering
-5. Signal track generation (BigWig)
-6. Peak calling (MACS2)
+1. Adapter trimming (BBDuk)
+2. Alignment to hybrid genome (Bowtie2)
+3. BAM processing and filtering
+4. Signal track generation (BigWig)
+5. Peak calling (MACS2)
 
 ## Software Requirements
 

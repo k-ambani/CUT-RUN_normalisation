@@ -6,9 +6,9 @@ Workflow used for processing CUT&RUN sequencing data using a human (hg38) and ye
 
 This workflow processes paired-end CUT&RUN sequencing data through the following steps:
 
-1. Adapter trimming (BBDuk)
-2. Alignment to hybrid genome (Bowtie2)
-3. BAM processing and filtering
+1. Directory Seteup
+2. Adapter trimming (BBDuk)
+3. Alignment to hybrid genome (Bowtie2), BAM processing and filtering
 4. Signal track generation (BigWig)
 5. Peak calling (MACS2)
 
@@ -105,7 +105,7 @@ multiqc --filename multiqc_trimmed.html *_fastqc.zip
 
 ---
 
-## 3. Alignment to Hybrid Genome (Bowtie2)
+## 3. Alignment to hybrid genome (Bowtie2), BAM processing and filtering
 
 Align reads to combined hg38/sacCer3 reference for spike-in normalization.
 
@@ -284,7 +284,7 @@ bamCoverage \
 
 ---
 
-## 6. Peak Calling (MACS2)
+## 5. Peak Calling (MACS2)
 
 ### Without Input Control 
 

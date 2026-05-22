@@ -1,18 +1,16 @@
 # CUT&RUN Data Processing Workflow
 
 Workflow used for processing CUT&RUN sequencing data using a human (hg38) and
-Drosophila (dm6) hybrid reference genome for spike-in normalization.
+Drosophila (dm6) hybrid reference genome for spike-in normalisation.
 
 ## Overview
 
 This workflow processes paired-end CUT&RUN sequencing data through the following steps:
 
-1. Quality control (FastQC/MultiQC)
-2. Contamination screening (FastQ Screen)
-3. Alignment to hybrid genome (Bowtie2)
-4. BAM processing and filtering
-5. Signal track generation (BigWig)
-6. Peak calling (MACS2)
+1. Directory setup
+2. Alignment to hybrid genome (Bowtie2), BAM processing and filtering
+3. Signal track generation (BigWig)
+4. Peak calling (MACS2)
 
 ## Software Requirements
 
@@ -20,7 +18,6 @@ This workflow processes paired-end CUT&RUN sequencing data through the following
 |------|---------|---------|
 | FastQC | 0.11.5 | Quality control |
 | MultiQC | 1.8+ | Report aggregation |
-| FastQ Screen | 0.15.3 | Contamination detection |
 | Bowtie2 | 2.3.4.1 | Read alignment |
 | SAMtools | 1.9 | BAM manipulation |
 | Sambamba | 0.6.7 | BAM sorting/indexing |
@@ -33,7 +30,6 @@ This workflow processes paired-end CUT&RUN sequencing data through the following
 
 - **Hybrid genome index**: Combined hg38 + dm6 Bowtie2 index
 - **Blacklist regions**: ENCODE hg38 blacklist (`hg38-blacklist.v2.bed`) and dm6 blacklist (`dm6-blacklist.v2.bed`)
-- **FastQ Screen config**: Pre-configured contamination reference genomes
 
 ---
 
@@ -51,120 +47,7 @@ mkdir -p $scratch_dir/bam_files/intermediate_bams/{hg38,dm6}
 
 ---
 
-## 2. Quality Control (FastQC)
-
-Assess raw sequencing data quality before processing.
-
-**`fastqc.sh`**
-
-```bash
-#!/bin/bash
-# =============================================================================
-# Quality Control: FastQC and MultiQC
-# Usage: sbatch fastqc.sh
-# =============================================================================
-
-#SBATCH --job-name=fastqc
-#SBATCH --nodes=1
-#SBATCH --mem=5G
-#SBATCH --cpus-per-task=10
-#SBATCH --time=5:00:00
-#SBATCH --mail-user=user@institute.edu
-#SBATCH --mail-type=ALL
-#SBATCH --output=fastqc-%j.out
-#SBATCH --error=fastqc-%j.err
-
-# --- Modules -----------------------------------------------------------------
-
-module load fastqc/0.11.5
-module load multiqc/1.8
-
-# --- Paths -------------------------------------------------------------------
-
-raw_data_dir="/path/to/raw/fastq/files"
-fastqc_output_dir="$raw_data_dir/fastqc_out"
-
-# --- Run FastQC --------------------------------------------------------------
-
-set -xe
-
-mkdir -p $fastqc_output_dir
-
-cd $raw_data_dir
-fastqc -t 9 -o $fastqc_output_dir *.fastq.gz
-
-# --- Aggregate reports with MultiQC ------------------------------------------
-
-cd $fastqc_output_dir
-multiqc *fastqc.zip
-```
-
----
-
-## 3. Contamination Screening (FastQ Screen)
-
-Screen for potential contamination from other organisms.
-
-**`fastq_screen_input.sh`** — single-sample script called by the batch wrapper.
-
-```bash
-#!/bin/bash
-# =============================================================================
-# Contamination Screening: FastQ Screen (single sample)
-# Usage: sbatch fastq_screen_input.sh <sample.fastq.gz>
-# =============================================================================
-
-#SBATCH --job-name=fastq_screen
-#SBATCH --nodes=1
-#SBATCH --mem=10G
-#SBATCH --cpus-per-task=6
-#SBATCH --time=10:00:00
-#SBATCH --mail-user=user@institute.edu
-#SBATCH --mail-type=ALL
-#SBATCH --output=fastq_screen-%j.out
-#SBATCH --error=fastq_screen-%j.err
-
-# --- Paths -------------------------------------------------------------------
-
-fq=$1
-fastq_screen_dir="/path/to/FastQ-Screen"
-
-# --- Run FastQ Screen --------------------------------------------------------
-
-cd $fastq_screen_dir
-./fastq_screen $fq
-```
-
-**`fastq_screen_batch.sh`** — submits one job per FASTQ file.
-
-```bash
-#!/bin/bash
-# =============================================================================
-# Contamination Screening: FastQ Screen batch submission
-# Usage: bash fastq_screen_batch.sh
-# =============================================================================
-
-# --- Paths -------------------------------------------------------------------
-
-project_dir="/path/to/project"
-data_dir="/path/to/raw/fastq/files"
-script_dir="$project_dir/scripts"
-
-mkdir -p "$data_dir/fastq_screen/error_files"
-
-# --- Submit per-sample jobs --------------------------------------------------
-
-cd $data_dir
-
-for infile in *.fastq.gz; do
-  sbatch $script_dir/fastq_screen_input.sh $data_dir/$infile
-  sleep 1
-done
-```
-
----
-
-## 4. Alignment to Hybrid Genome (Bowtie2)
+## 2. Alignment to Hybrid Genome (Bowtie2)
 
 Align reads to the combined hg38/dm6 reference. Reads are then split by genome
 and filtered to produce final BAMs for both the human (hg38) and spike-in (dm6)
@@ -365,16 +248,16 @@ done
 
 ---
 
-## 5. BigWig Generation
+## 3. BigWig Generation
 
-Generate RPKM-normalized signal tracks from the final hg38 BAMs for visualization.
+Generate RPKM-normalised signal tracks from the final hg38 BAMs for visualisation.
 
 **`bigwig_RPKM_input.sh`** — single-sample script called by the batch wrapper.
 
 ```bash
 #!/bin/bash
 # =============================================================================
-# BigWig Generation: RPKM normalization (single sample)
+# BigWig Generation: RPKM normalisation (single sample)
 # Usage: sbatch bigwig_RPKM_input.sh <sample.bam>
 # =============================================================================
 
@@ -397,7 +280,7 @@ bam_file=$1
 input_dir="/path/to/project/results/bam_files/final_bams/hg38"
 output_dir="/path/to/project/results/bw_files/RPKM"
 
-# --- Generate RPKM-normalized BigWig -----------------------------------------
+# --- Generate RPKM-normalised BigWig -----------------------------------------
 
 cd $input_dir
 
@@ -418,7 +301,7 @@ bamCoverage \
 ```bash
 #!/bin/bash
 # =============================================================================
-# BigWig Generation: RPKM normalization batch submission
+# BigWig Generation: RPKM normalisation batch submission
 # Usage: bash bigwig_RPKM_batch.sh
 # =============================================================================
 
@@ -442,7 +325,7 @@ done
 
 ---
 
-## 6. Peak Calling (MACS2)
+## 4. Peak Calling (MACS2)
 
 Peaks are called without a negative control using an FDR threshold of q < 0.01.
 
@@ -505,13 +388,11 @@ done
 
 | Stage | Output | Description |
 |-------|--------|-------------|
-| QC | `*_fastqc.html` | Per-sample quality reports |
-| QC | `multiqc_*.html` | Aggregated quality reports |
 | Alignment | `*_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam` | Processed human alignments |
 | Alignment | `*_nohg38_dm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam` | Spike-in (dm6) alignments |
 | Alignment | `*_dup_metrics_hg38.txt` | Picard duplicate metrics (hg38) |
 | Alignment | `*_dup_metrics_dm6.txt` | Picard duplicate metrics (dm6) |
-| BigWig | `*.bw` | RPKM-normalized signal tracks |
+| BigWig | `*.bw` | RPKM-normalised signal tracks |
 | Peaks | `*_peaks.narrowPeak` | Called peaks |
 | Peaks | `*_summits.bed` | Peak summit positions |
 
@@ -519,8 +400,8 @@ done
 
 ## Notes
 
-- **Spike-in normalization**: The dm6 alignments are used to calculate spike-in
-  scaling factors for cross-sample normalization. See downstream analysis scripts
+- **Spike-in normalisation**: The dm6 alignments are used to calculate spike-in
+  scaling factors for cross-sample normalisation. See downstream analysis scripts
   for scale factor computation.
 
 - **Hybrid genome construction**: The hg38/dm6 hybrid index was created by

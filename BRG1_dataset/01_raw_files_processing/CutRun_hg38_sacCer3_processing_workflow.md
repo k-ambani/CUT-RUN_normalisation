@@ -6,22 +6,17 @@ Workflow used for processing CUT&RUN sequencing data using a human (hg38) and ye
 
 This workflow processes paired-end CUT&RUN sequencing data through the following steps:
 
-1. Quality control (FastQC/MultiQC)
 2. Adapter trimming (BBDuk)
-3. Contamination screening (FastQ Screen)
-4. Alignment to hybrid genome (Bowtie2)
-5. BAM processing and filtering
-6. Signal track generation (BigWig)
-7. Peak calling (MACS2)
+3. Alignment to hybrid genome (Bowtie2)
+4. BAM processing and filtering
+5. Signal track generation (BigWig)
+6. Peak calling (MACS2)
 
 ## Software Requirements
 
 | Tool | Version | Purpose |
 |------|---------|---------|
-| FastQC | 0.11.5 | Quality control |
-| MultiQC | 1.8+ | Report aggregation |
 | BBMap/BBDuk | 39.13 | Adapter trimming |
-| FastQ Screen | 0.15.3 | Contamination detection |
 | Bowtie2 | 2.3.4.1 | Read alignment |
 | SAMtools | 1.9 | BAM manipulation |
 | Sambamba | 0.6.7 | BAM sorting/indexing |
@@ -35,8 +30,7 @@ This workflow processes paired-end CUT&RUN sequencing data through the following
 - **Hybrid genome index**: Combined hg38 + sacCer3 Bowtie2 index
 - **Blacklist regions**: ENCODE hg38 blacklist (hg38-blacklist.v2.bed)
 - **Adapter sequences**: TruSeq adapter reference (truseq.fa.gz)
-- **FastQ Screen config**: Pre-configured contamination reference genomes
-
+- 
 ---
 
 ## 1. Directory Setup
@@ -51,37 +45,8 @@ mkdir -p ${PROJECT_DIR}/results/bam_files/{intermediate,final_bams}/{hg38,sacCer
 
 ---
 
-## 2. Quality Control (FastQC)
 
-Assess raw sequencing data quality before processing.
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=fastqc
-#SBATCH --mem=10G
-#SBATCH --cpus-per-task=10
-#SBATCH --time=5:00:00
-
-# Define paths
-RAW_DATA_DIR="/path/to/raw/fastq/files"
-FASTQC_OUT="${PROJECT_DIR}/raw_data"
-
-mkdir -p ${FASTQC_OUT}
-
-# Run FastQC on all samples
-for sample_dir in ${RAW_DATA_DIR}/*; do
-    cd ${sample_dir}
-    fastqc -t 9 -o ${FASTQC_OUT} *fastq.gz
-done
-
-# Aggregate reports with MultiQC
-cd ${FASTQC_OUT}
-multiqc --filename multiqc_raw_fastqc.html *fastqc.zip
-```
-
----
-
-## 3. Adapter Trimming (BBDuk)
+## 2. Adapter Trimming (BBDuk)
 
 Remove adapter sequences and low-quality bases from reads.
 
@@ -139,54 +104,7 @@ multiqc --filename multiqc_trimmed.html *_fastqc.zip
 
 ---
 
-## 4. Contamination Screening (FastQ Screen)
-
-Screen for potential contamination from other organisms.
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=fastq_screen
-#SBATCH --mem=10G
-#SBATCH --cpus-per-task=4
-#SBATCH --time=10:00:00
-
-# Define paths
-FASTQ_SCREEN="/path/to/FastQ-Screen"
-CONFIG_FILE="/path/to/fastq_screen.conf"
-OUTPUT_DIR="${PROJECT_DIR}/results/fastq_screen"
-
-mkdir -p ${OUTPUT_DIR}
-
-# Run FastQ Screen on input file (passed as argument)
-FQ_FILE=$1
-
-${FASTQ_SCREEN}/fastq_screen ${FQ_FILE} \
-    --conf ${CONFIG_FILE} \
-    --subset 0 \
-    --outdir ${OUTPUT_DIR}
-```
-
-**Batch submission wrapper:**
-
-```bash
-#!/bin/bash
-# Submit FastQ Screen jobs for all samples
-
-RAW_DATA_DIR="/path/to/raw/fastq/files"
-SCRIPT_DIR="${PROJECT_DIR}/scripts"
-
-for sample_dir in ${RAW_DATA_DIR}/*; do
-    cd ${sample_dir}
-    for fq_file in *.fastq.gz; do
-        sbatch ${SCRIPT_DIR}/fastq_screen.sh ${sample_dir}/${fq_file}
-        sleep 1
-    done
-done
-```
-
----
-
-## 5. Alignment to Hybrid Genome (Bowtie2)
+## 3. Alignment to Hybrid Genome (Bowtie2)
 
 Align reads to combined hg38/sacCer3 reference for spike-in normalization.
 
@@ -327,7 +245,7 @@ done
 
 ---
 
-## 6. BigWig Generation
+## 4. BigWig Generation
 
 Generate normalized signal tracks for visualization.
 
@@ -365,7 +283,7 @@ bamCoverage \
 
 ---
 
-## 7. Peak Calling (MACS2)
+## 6. Peak Calling (MACS2)
 
 ### Without Input Control 
 
@@ -445,83 +363,10 @@ done
 
 ---
 
-## 8. Quality Metrics Summary (MultiQC)
-
-### Fragment Size Distribution
-
-```bash
-#!/bin/bash
-#SBATCH --job-name=multiqc
-#SBATCH --mem=20G
-#SBATCH --cpus-per-task=5
-#SBATCH --time=16:00:00
-
-set -xe
-
-# Define paths
-FINAL_BAM_DIR="${PROJECT_DIR}/results/bam_files/final_bams/hg38"
-OUTPUT_DIR="${PROJECT_DIR}/results/multiqc"
-
-mkdir -p ${OUTPUT_DIR}/insert_size
-
-# Collect insert size metrics for all samples
-cd ${FINAL_BAM_DIR}
-
-for bam_file in *_hg38_final.bam; do
-    SAMPLE=$(basename ${bam_file} _hg38_final.bam)
-    
-    picard CollectInsertSizeMetrics \
-        I=${bam_file} \
-        O=${OUTPUT_DIR}/insert_size/${SAMPLE}_insert_size_metrics.txt \
-        H=${OUTPUT_DIR}/insert_size/${SAMPLE}_insert_size_histogram.pdf
-done
-
-# Generate MultiQC report
-cd ${OUTPUT_DIR}/insert_size
-multiqc --filename multiqc_fragment_size *_metrics.txt
-```
-
-### Alignment Statistics
-
-```bash
-#!/bin/bash
-# Generate alignment statistics across processing stages
-
-set -xe
-
-INTERMEDIATE_DIR="${PROJECT_DIR}/results/bam_files/intermediate"
-FINAL_BAM_DIR="${PROJECT_DIR}/results/bam_files/final_bams"
-OUTPUT_DIR="${PROJECT_DIR}/results/multiqc/alignment_stats"
-
-mkdir -p ${OUTPUT_DIR}
-
-# Generate stats for intermediate and final BAMs
-for bam_dir in ${INTERMEDIATE_DIR} ${INTERMEDIATE_DIR}/hg38 ${FINAL_BAM_DIR}/hg38; do
-    cd ${bam_dir}
-    for bam_file in *.bam; do
-        SAMPLE=$(basename ${bam_file} .bam)
-        samtools flagstat -@ 12 ${bam_file} > ${OUTPUT_DIR}/${SAMPLE}_flagstat.txt
-        samtools stats -@ 12 ${bam_file} > ${OUTPUT_DIR}/${SAMPLE}_stats.txt
-        samtools idxstats -@ 12 ${bam_file} > ${OUTPUT_DIR}/${SAMPLE}_idxstats.txt
-    done
-done
-
-# Aggregate all QC metrics
-cd ${OUTPUT_DIR}
-multiqc --filename multiqc_alignment_summary \
-    ${PROJECT_DIR}/trim_data/fastqc_trimmed/*.zip \
-    *.txt \
-    ${FINAL_BAM_DIR}/hg38/*_dup_metrics.txt
-```
-
----
-
 ## Output Files
 
 | Stage | Output | Description |
 |-------|--------|-------------|
-| QC | `*_fastqc.html` | Per-sample quality reports |
-| QC | `multiqc_*.html` | Aggregated quality reports |
 | Trimming | `*_R1.trim.fastq.gz` | Trimmed forward reads |
 | Trimming | `*_R2.trim.fastq.gz` | Trimmed reverse reads |
 | Alignment | `*_hg38_final.bam` | Processed human alignments |

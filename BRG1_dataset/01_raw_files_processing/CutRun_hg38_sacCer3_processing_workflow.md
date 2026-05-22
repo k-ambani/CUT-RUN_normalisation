@@ -6,7 +6,7 @@ Workflow used for processing CUT&RUN sequencing data using a human (hg38) and ye
 
 This workflow processes paired-end CUT&RUN sequencing data through the following steps:
 
-1. Directory Seteup
+1. Directory Setup
 2. Adapter trimming (BBDuk)
 3. Alignment to hybrid genome (Bowtie2), BAM processing and filtering
 4. Signal track generation (BigWig)

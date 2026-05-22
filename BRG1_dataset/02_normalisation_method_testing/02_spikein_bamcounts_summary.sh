@@ -9,7 +9,6 @@
 #SBATCH --cpus-per-task=15
 #SBATCH --time=4:00:00
 #SBATCH --mem=20G
-#SBATCH --mail-type=ALL
 #SBATCH --output=bam_bw_peaks_summary-%j.out
 #SBATCH --error=bam_bw_peaks_summary-%j.err
 

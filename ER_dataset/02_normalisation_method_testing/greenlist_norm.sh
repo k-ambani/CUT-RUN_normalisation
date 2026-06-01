@@ -1,20 +1,16 @@
 #!/bin/bash
 # =============================================================================
-# Greenlist Normalization: Read Quantification and Size Factor Estimation
+# Greenlist Normalisation: Read Quantification and Size Factor Estimation
 # Usage: sbatch greenlist_norm.sh
 # =============================================================================
 
 #SBATCH --job-name=greenlist_norm
 #SBATCH --nodes=1
-#SBATCH --partition=rhel_short
 #SBATCH --mem=50G
-#SBATCH --ntasks-per-node=20
 #SBATCH --time=10:00:00
-#SBATCH --mail-user=user@institute.edu
 #SBATCH --mail-type=ALL
 #SBATCH --output=greenlist_norm-%j.out
 #SBATCH --error=greenlist_norm-%j.err
-#SBATCH --container=/config/spack/containers/centos7/container.sif
 
 # --- Setup -------------------------------------------------------------------
 

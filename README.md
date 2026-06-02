@@ -3,7 +3,7 @@ Code for the paper _"Benchmarking normalisation methods for differential binding
 
 The code that processed the raw files, conducted the differential analysis on the BRG1 and ER experiments, simulation experiments for the CTCF dataset and the code for figure generation are available here.
 
-
+For html files: prepend to the URL to view the rendered html, including the https in the link  _https://html-preview.github.io/?url=_
 
 BRG1_dataset 
 

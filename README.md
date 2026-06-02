@@ -22,4 +22,4 @@ ER_dataset
   - 03_figure_generation - code for figure generation*
 
 
-*Note: To view the html files in this repo (particular the figure generation files), prepend to the following URL including the https://  _https://html-preview.github.io/?url=_
+*Note: To view the html files in this repo (particular to view figures), prepend to the following URL including the https://  _https://html-preview.github.io/?url=_

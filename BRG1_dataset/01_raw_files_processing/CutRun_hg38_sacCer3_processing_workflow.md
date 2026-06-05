@@ -384,6 +384,4 @@ done
   
 - **Hybrid genome construction**: The hg38_sacCer3 hybrid index was created by concatenating the human (hg38) and yeast (sacCer3) reference genomes before indexing with Bowtie2.
 
-- **Resource allocation**: Memory and CPU requirements may need adjustment based on sequencing depth and available compute resources.
-
 - **SLURM configuration**: The `#SBATCH` directives shown are examples; adjust partition names and resource limits according to your HPC environment.

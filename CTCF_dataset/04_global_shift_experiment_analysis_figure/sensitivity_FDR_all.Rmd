@@ -1,0 +1,243 @@
+---
+title: "Global shift simulations visualisations"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+# Prep
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(ComplexHeatmap)
+library(cowplot)
+library(DT)
+library(RColorBrewer)
+library(ggrepel)
+library(dplyr)
+library(ggpubr)
+library(DESeq2)
+library(ggplot2)
+library(ggsci)
+library(gplots)
+library(clusterProfiler)
+library(circlize)
+library(ggh4x)
+
+```
+
+
+```{r, echo=FALSE, results=FALSE}
+rm(list=ls())
+
+```
+
+## Loading data and putting metrics into dataframe
+```{r}
+
+experiment_summary_list <- list()
+
+norm_methods <- c("LS", "RLE_RiP", "RLE_BG","greenlist") #Excluding greenlist
+experiment_metrics <- data.frame(rand_run = 1:30)
+for(frac_inflate in c(0.1,0.5,0.7)){
+  for(inflation_factor_choose in c(2,5,10,20)){
+    experiment_summary_df <- readRDS(paste("/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/06.Global_shift/results/frac_inflate_",frac_inflate,"/inflation_factor_",inflation_factor_choose,"/experiment_summary.rds",sep=""))
+ experiment_summary_list[[as.character(frac_inflate)]][[as.character(inflation_factor_choose)]] <-experiment_summary_df     
+
+       for(norm_method in norm_methods){
+        exp_name =paste("frac-",frac_inflate,"_fact-",inflation_factor_choose,sep = "")
+
+         experiment_metrics[paste("sensitivity_",norm_method,"_",exp_name,sep = "")] <- experiment_summary_df[paste0(norm_method,"_I_TP")]/(experiment_summary_df[paste0(norm_method,"_I_TP")]+experiment_summary_df[paste0(norm_method,"_I_FN")]) * 100
+
+         experiment_metrics[paste("FDR_",norm_method,"_",exp_name,sep = "")] <- experiment_summary_df[paste0(norm_method,"_I_FP")]/(experiment_summary_df[paste0(norm_method,"_I_FP")]+experiment_summary_df[paste0(norm_method,"_I_TP")]) * 100
+
+      }
+       
+ 
+  }
+  }
+
+
+
+colnames(experiment_metrics) <- colnames(experiment_metrics) %>% gsub("LS","Library size",.) %>% gsub("greenlist", "Greenlist",.) %>% gsub("RLE_RiP","Reads in peak",.) %>% gsub("RLE_BG", "Background", .)
+
+```
+
+
+```{r, eval=FALSE, include = FALSE}
+write.csv(experiment_metrics,"global.csv")
+```
+
+
+# Sensitivity plots
+
+```{r}
+experiment_summary_sensitivity <- experiment_metrics[,grep("sensitivity",colnames(experiment_metrics))]
+colnames(experiment_summary_sensitivity) <- gsub("sensitivity_","",colnames(experiment_summary_sensitivity))
+experiment_summary_sensitivity_mat <- experiment_summary_sensitivity %>% as.matrix()
+
+```
+
+
+
+```{r}
+
+
+experiment_summary_sensitivity[experiment_summary_sensitivity=="NaN"] <- c(-1)
+experiment_summary_sensitivity <-experiment_summary_sensitivity[,!grepl("fact-2$", colnames(experiment_summary_sensitivity))]
+
+experiment_summary_sensitivity_blocks <- data.frame(NaN_run =colSums(experiment_summary_sensitivity<0) , 
+                                                    less_than_80 = colSums(experiment_summary_sensitivity>=0 & experiment_summary_sensitivity<80), 
+                                                    between_80_95 = colSums(experiment_summary_sensitivity>80 & experiment_summary_sensitivity<95), 
+                                                    greater_95 = colSums(experiment_summary_sensitivity>95))
+experiment_summary_sensitivity_blocks$method <- rownames(experiment_summary_sensitivity_blocks)
+
+# Reshape data to long format for ggplot
+df_long <- experiment_summary_sensitivity_blocks %>%
+  pivot_longer(cols = -method, 
+               names_to = "category", 
+               values_to = "count")
+df_long <- df_long %>% separate(method, into = c("norm_method", "fraction_inf","inflation_factor"), sep="_", remove = FALSE)
+
+#df_long <- df_long[!df_long$norm_method=="greenlist",]
+# Convert category to factor with desired order
+df_long$category <- factor(df_long$category, 
+                           levels = c("NaN_run","less_than_80","between_80_95","greater_95" ))
+df_long$method <- factor(df_long$method, levels = unique(df_long$method))
+df_long$norm_method <- factor(df_long$norm_method, levels = c("Library size","Background", "Greenlist" ,"Reads in peak"))
+df_long$inflation_factor <- df_long$inflation_factor %>% gsub("fact-","", .)
+df_long$inflation_factor <- factor(df_long$inflation_factor, levels = c("5","10","20"))
+
+```
+
+
+
+## Figure generation - stacked bar plots
+```{r}
+
+# Create stacked bar plot with nested facets (2 rows)
+sensitivity_stacked_bar <- ggplot(df_long, aes(x = inflation_factor, y = count, fill = category)) +
+  geom_bar(stat = "identity", color = "black", linewidth = 0.3) +
+  facet_nested(cols = vars(norm_method), rows = vars(fraction_inf), scales = "free_x") +
+  scale_fill_manual(values = c("greater_95" = "#0d7d87",
+                                "between_80_95" = "#99c6cc", 
+                                "less_than_80" = "#F44336"),
+                    labels = c("< 80","80-95", ">95"),
+                    name = "% Sensitivity") +
+  scale_y_continuous(breaks = seq(0, 30, by = 5),
+                     minor_breaks = seq(0, 30, by = 1)) + 
+  guides(y = guide_axis_minor()) +
+  theme_minimal() + 
+  theme(
+    axis.ticks.length = unit(2, "pt"),
+    axis.minor.ticks.length = unit(1, "pt"),
+    axis.ticks.y = element_line(colour = "black"),
+    legend.position = "right"
+  ) +
+  labs(title = "Global shift - Sensitivity",
+       x = "Inflation factor",
+       y = "Run")
+sensitivity_stacked_bar
+```
+
+
+
+```{r}
+
+pdf("figures_pdf/sensitivity_stacked_bar.pdf", width = 6, height = 4)
+sensitivity_stacked_bar
+dev.off()
+
+```
+
+
+# FDR 
+```{r}
+experiment_summary_FDR<- experiment_metrics[,grep("FDR",colnames(experiment_metrics))]
+colnames(experiment_summary_FDR) <- gsub("FDR_","",colnames(experiment_summary_FDR))
+
+experiment_summary_FDR_mat <- experiment_summary_FDR %>% as.matrix()
+
+
+
+
+```
+
+
+```{r}
+experiment_summary_FDR[experiment_summary_FDR=="NaN"] <- c(-1)
+
+experiment_summary_FDR <-experiment_summary_FDR[,!grepl("fact-2$", colnames(experiment_summary_FDR))]
+
+experiment_summary_FDR_blocks <- data.frame(NaN_run =colSums(experiment_summary_FDR<0) , 
+                                            less_than_five = colSums(experiment_summary_FDR>=0 &experiment_summary_FDR<5),
+                                            between_five_ten = colSums(experiment_summary_FDR>5&experiment_summary_FDR<10),
+                                            greater_ten = colSums(experiment_summary_FDR>10))
+                           
+
+experiment_summary_FDR_blocks$method <- rownames(experiment_summary_FDR_blocks)
+
+df <- experiment_summary_FDR_blocks
+# Reshape data to long format for ggplot
+df_long <- df %>%
+  pivot_longer(cols = -method, 
+               names_to = "category", 
+               values_to = "count")
+df_long <- df_long %>% separate(method, into = c("norm_method", "fraction_inf","inflation_factor"), sep="_", remove = FALSE)
+df_long <- df_long[!df_long$norm_method=="greenlist",]
+
+# Convert category to factor with desired order
+df_long$category <- factor(df_long$category, 
+                           levels = c("NaN_run","greater_ten",  "between_five_ten","less_than_five"))
+df_long$method <- factor(df_long$method, levels = unique(df_long$method))
+df_long$norm_method <- factor(df_long$norm_method, levels = unique(df_long$norm_method))
+
+
+df_long$method <- factor(df_long$method, levels = unique(df_long$method))
+df_long$norm_method <- factor(df_long$norm_method, levels = c("Library size","Background", "Greenlist" ,"Reads in peak"))
+df_long$inflation_factor <- df_long$inflation_factor %>% gsub("fact-","", .)
+df_long$inflation_factor <- factor(df_long$inflation_factor, levels = c("5","10","20"))
+```
+
+## Figure generation - stacked bar plots
+```{r}
+# Create stacked bar plot
+FDR_stacked_bar <- ggplot(df_long, aes(x = inflation_factor, y = count, fill = category)) +
+  geom_bar(stat = "identity", color = "black", linewidth = 0.3) +
+  facet_nested(cols = vars(norm_method), rows = vars(fraction_inf), scales = "free_x") +
+  scale_fill_manual(values = c("less_than_five" = "#0d7d87",
+                                "between_five_ten" = "#99c6cc", 
+                                "greater_ten" = "#F44336",
+                               "NaN_run" = "grey"),
+                    labels = c("NaN" ,"> 10",  "5-10","< 5"),
+                    name = "% FDR") +
+  scale_y_continuous(breaks = seq(0, 30, by = 5),
+                     minor_breaks = seq(0, 30, by = 1)) + 
+  guides(y = guide_axis_minor()) +
+  theme_minimal() + 
+  theme(
+    axis.ticks.length = unit(2, "pt"),
+    axis.minor.ticks.length = unit(1, "pt"),
+    axis.ticks.y = element_line(colour = "black"),
+    legend.position = "right"
+  ) +
+  labs(title = "Global shift - False Discovery Rate",
+       x = "Inflation factor",
+       y = "Run")
+
+FDR_stacked_bar
+```
+
+```{r}
+
+pdf("figures_pdf/FDR_stacked_bar.pdf", width = 6, height = 4)
+FDR_stacked_bar
+dev.off()
+
+```

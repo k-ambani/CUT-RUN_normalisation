@@ -1,0 +1,234 @@
+---
+title: "Simulation visualisations"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+# Prep
+
+```{r, echo=FALSE, results=FALSE}
+rm(list=ls())
+
+```
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(ComplexHeatmap)
+library(cowplot)
+library(DT)
+library(RColorBrewer)
+library(ggrepel)
+library(dplyr)
+library(ggpubr)
+library(DESeq2)
+library(ggplot2)
+library(ggsci)
+library(gplots)
+library(clusterProfiler)
+library(scales)
+library(circlize)
+```
+
+
+### Loading data
+```{r}
+experiment_results <- list()
+
+experiment_results[["inflation_factor_2"]] <- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/05.Artificially_inflate/results/inflation_factor_2/experiment_summary.rds")
+
+experiment_results[["inflation_factor_5"]] <- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/05.Artificially_inflate/results/inflation_factor_5/experiment_summary.rds")
+
+experiment_results[["inflation_factor_10"]] <- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/05.Artificially_inflate/results/inflation_factor_10/experiment_summary.rds")
+
+experiment_results[["inflation_factor_20"]]<- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/05.Artificially_inflate/results/inflation_factor_20/experiment_summary.rds")
+```
+
+
+# Getting metrics
+```{r}
+
+experiment_summary <- data.frame(rand_comp =paste0(experiment_results[["inflation_factor_5"]]$groupB_samples, "_vs_", experiment_results[["inflation_factor_5"]]$groupA_samples) %>% gsub("CTCF_", "",.) %>% gsub(" ","",.))
+
+
+
+norm_methods <- c("LS", "RLE_RiP", "RLE_BG", "greenlist") ## Excluding greenlist
+inflation_factors <- names(experiment_results)
+plotting_order <- c()
+counter = 1
+for(norm_method in norm_methods){
+  for(inflation_factor in inflation_factors){
+    inflation_factor_num = inflation_factor %>% gsub("inflation_factor","",.)
+
+    experiment_summary[,paste0(norm_method,"_sensitivity",inflation_factor_num)] <- experiment_results[[inflation_factor]][,paste0(norm_method,"_I_TP")]/(experiment_results[[inflation_factor]][,paste0(norm_method,"_I_TP")]+experiment_results[[inflation_factor]][,paste0(norm_method,"_I_FN")]) * 100
+  experiment_summary[,paste0(norm_method,"_specificity",inflation_factor_num)] <- experiment_results[[inflation_factor]][,paste0(norm_method,"_I_TN")]/(experiment_results[[inflation_factor]][,paste0(norm_method,"_I_FP")]+experiment_results[[inflation_factor]][,paste0(norm_method,"_I_TN")]) * 100
+experiment_summary[,paste0(norm_method,"_FDR",inflation_factor_num)] <- experiment_results[[inflation_factor]][,paste0(norm_method,"_I_FP")]/(experiment_results[[inflation_factor]][,paste0(norm_method,"_I_FP")]+experiment_results[[inflation_factor]][,paste0(norm_method,"_I_TP")]) * 100
+    
+plotting_order[counter] <- paste0(norm_method,inflation_factor_num)
+counter = counter +1
+    
+  }
+  
+}
+
+
+colnames(experiment_summary) <- colnames(experiment_summary) %>% gsub("LS","Library size",.) %>% gsub("greenlist", "Greenlist",.) %>% gsub("RLE_RiP","Reads in peak",.) %>% gsub("RLE_BG", "Background", .)
+```
+
+
+# Sensitivity plots
+
+```{r}
+experiment_summary_sensitivity <- experiment_summary[,grep("sensitivity",colnames(experiment_summary))]
+colnames(experiment_summary_sensitivity) <- gsub("sensitivity_","",colnames(experiment_summary_sensitivity))
+experiment_summary_sensitivity_mat <- experiment_summary_sensitivity %>% as.matrix()
+rownames(experiment_summary_sensitivity_mat) <- paste(rownames(experiment_summary),experiment_summary$rand_comp, sep = ". ")
+
+```
+
+
+```{r}
+
+experiment_summary_sensitivity[experiment_summary_sensitivity=="NaN"] <- c(-1)
+experiment_summary_sensitivity <-experiment_summary_sensitivity[,!grepl("_2$", colnames(experiment_summary_sensitivity))]
+experiment_summary_sensitivity_blocks <- data.frame(NaN_run =colSums(experiment_summary_sensitivity<0) , 
+                                                    less_than_80 = colSums(experiment_summary_sensitivity>=0 & experiment_summary_sensitivity<80), 
+                                                    between_80_95 = colSums(experiment_summary_sensitivity>80 & experiment_summary_sensitivity<95), 
+                                                    greater_95 = colSums(experiment_summary_sensitivity>95))
+
+experiment_summary_sensitivity_blocks$method <- rownames(experiment_summary_sensitivity_blocks)
+
+
+# Reshape data to long format for ggplot
+df_long <- experiment_summary_sensitivity_blocks %>%
+  pivot_longer(cols = -method, 
+               names_to = "category", 
+               values_to = "count")
+df_long <- df_long %>% separate(method, into = c("norm_method", "inflation_factor"), sep="_", remove = FALSE)
+
+# Convert category to factor with desired order
+df_long$category <- factor(df_long$category, 
+                           levels = c("NaN_run","less_than_80","between_80_95","greater_95" ))
+
+df_long$norm_method <- factor(df_long$norm_method, levels = c( "Library size" ,  "Background", "Greenlist", "Reads in peak" ))
+df_long$inflation_factor <- factor(df_long$inflation_factor, levels = c("5","10","20"))
+
+```
+
+## Figure generation - Stacked bar plot
+
+```{r}
+sensitivity_stacked_bar <- ggplot(df_long, aes(x = inflation_factor, y = count, fill = category)) +
+  geom_bar(stat = "identity",color = "black", linewidth = 0.3) +
+  facet_wrap(~norm_method, scales="free", nrow=1) + 
+  scale_fill_manual(values = c("greater_95" = "#0d7d87",
+                                "between_80_95" = "#99c6cc", 
+                                "less_than_80" = "#F44336"),
+                    labels = c("<80","80-95", "> 95"),
+                    name = "% Sensitivity") +
+  scale_y_continuous(breaks = seq(0, 30, by = 5)) + 
+  theme_minimal() +
+  theme(
+        legend.position = "right") +
+  labs(title = "Inflation experiment - Sensitivity",
+       x = "Inflation factor",
+       y = "Run")
+
+sensitivity_stacked_bar
+```
+
+
+
+```{r}
+
+pdf("figures_pdf/sensitivity_stacked_bar.pdf", width = 6, height = 3)
+sensitivity_stacked_bar
+dev.off()
+
+```
+
+
+
+# FDR 
+
+```{r}
+experiment_summary_FDR<- experiment_summary[,grep("FDR",colnames(experiment_summary))]
+colnames(experiment_summary_FDR) <- gsub("FDR_","",colnames(experiment_summary_FDR))
+
+experiment_summary_FDR_mat <- experiment_summary_FDR %>% as.matrix()
+rownames(experiment_summary_FDR_mat) <- paste(rownames(experiment_summary),experiment_summary$rand_comp, sep = ". ")
+
+
+
+
+```
+
+
+```{r}
+experiment_summary_FDR[experiment_summary_FDR=="NaN"] <- c(-1)
+experiment_summary_FDR <-experiment_summary_FDR[,!grepl("_2$", colnames(experiment_summary_FDR))]
+
+
+experiment_summary_FDR_blocks <- data.frame(NaN_run =colSums(experiment_summary_FDR<0) , 
+                                            less_than_five = colSums(experiment_summary_FDR>=0 &experiment_summary_FDR<5),
+                                            between_five_ten = colSums(experiment_summary_FDR>5&experiment_summary_FDR<10),
+                                            greater_ten = colSums(experiment_summary_FDR>10))
+                           
+
+experiment_summary_FDR_blocks$method <- rownames(experiment_summary_FDR_blocks)
+
+df <- experiment_summary_FDR_blocks
+# Reshape data to long format for ggplot
+df_long <- df %>%
+  pivot_longer(cols = -method, 
+               names_to = "category", 
+               values_to = "count")
+df_long <- df_long %>% separate(method, into = c("norm_method", "inflation_factor"), sep="_", remove = FALSE)
+
+# Convert category to factor with desired order
+df_long$category <- factor(df_long$category, 
+                           levels = c("NaN_run","greater_ten",  "between_five_ten","less_than_five"))
+df_long$method <- factor(df_long$method, levels = unique(df_long$method))
+df_long$norm_method <- factor(df_long$norm_method, levels = c( "Library size" ,  "Background", "Greenlist", "Reads in peak" ))
+
+df_long$inflation_factor <- factor(df_long$inflation_factor, levels = c("5","10","20"))
+
+df_long$method <- factor(df_long$method, levels = unique(df_long$method))
+```
+
+
+## Figure generation - Stacked bar plot
+```{r}
+FDR_stacked_bar <- ggplot(df_long, aes(x = inflation_factor, y = count, fill = category)) +
+  geom_bar(stat = "identity",color = "black", linewidth = 0.3) +
+ facet_wrap(~norm_method, scales="free", nrow=1) + 
+  scale_fill_manual(values = c("less_than_five" = "#0d7d87",
+                                "between_five_ten" = "#99c6cc", 
+                                "greater_ten" = "#F44336",
+                               "NaN_run" = "grey"),
+                    labels = c("NaN" ,"> 10",  "5-10","< 5"),
+                    name = "% FDR") +
+  scale_y_continuous(breaks = seq(0, 30, by = 5)) + 
+  theme_minimal() +
+  theme(
+        legend.position = "right") +
+  labs(title = "Inflation experiment - False Discovery Rate",
+       x = "Inflation factor",
+       y = "Run")
+
+FDR_stacked_bar
+```
+
+```{r}
+
+pdf("figures_pdf/FDR_stacked_bar.pdf", width = 6, height = 3)
+FDR_stacked_bar
+dev.off()
+
+```

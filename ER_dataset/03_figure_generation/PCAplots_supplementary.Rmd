@@ -1,0 +1,49 @@
+---
+title: "PCA plots"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+
+```{r}
+
+rm(list=ls())
+
+```
+
+
+```{r, echo=FALSE, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(ComplexHeatmap)
+library(UpSetR)
+```
+
+
+
+```{r}
+
+load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/R_analysis/2.Diffbind/data/diffbind_analyse_workspace_2v2.RData")
+
+```
+
+
+```{r}
+dbObj_counts_summit %>% dba.plotPCA()
+```
+
+
+```{r}
+dbObj_RLEbackground %>% dba.plotPCA()
+dbObj_RLERiP %>% dba.plotPCA()
+dbObj_RPKMnorm %>% dba.plotPCA()
+dbObj_sacCer3norm %>% dba.plotPCA()
+dbObj_dm6norm %>% dba.plotPCA()
+dbObj_greenlist %>% dba.plotPCA()
+```

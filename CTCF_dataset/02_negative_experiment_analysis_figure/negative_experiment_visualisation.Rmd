@@ -1,0 +1,109 @@
+---
+title: "Negative experiment"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+# Prep
+
+```{r, echo=FALSE, results=FALSE}
+### library paths
+
+rm(list=ls())
+```
+
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+### libraries
+
+library(tidyverse)
+library(DiffBind)
+library(UpSetR)
+library(magrittr)
+library(ComplexHeatmap)
+library(scales)
+library(circlize)
+
+```
+
+```{r}
+### loading data
+
+diff_nums_rec <- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/04.Negative_exp/data/diff_nums_rec.rds")
+
+```
+
+
+
+
+### converting to percentages
+```{r}
+diff_nums_rec$RPKM_perc <- diff_nums_rec$RPKM_diff_regions*100/diff_nums_rec$num_of_peaks
+diff_nums_rec$RLEbackground_perc <- diff_nums_rec$RLEback_diff_regions*100/diff_nums_rec$num_of_peaks
+diff_nums_rec$spikein_perc <- diff_nums_rec$dm6scaled_diff_regions*100/diff_nums_rec$num_of_peaks
+diff_nums_rec$RLERiP_perc <- diff_nums_rec$RLERiP_diff_regions*100/diff_nums_rec$num_of_peaks
+diff_nums_rec$greenlist_perc <- diff_nums_rec$greenlist_diff_regions*100/diff_nums_rec$num_of_peaks
+
+diff_nums_rec_perc <- diff_nums_rec[,grep("perc", colnames(diff_nums_rec))]
+
+```
+
+
+# Figure generation
+```{r, fig.height=6, fig.align='center', warning=FALSE, fig.width=4}
+
+colnames(diff_nums_rec_perc) <- gsub("_perc","",colnames(diff_nums_rec_perc))
+
+rownames(diff_nums_rec_perc) <- paste("Run", rownames(diff_nums_rec))
+
+
+median_values =  apply(diff_nums_rec_perc,2,median) %>% as.numeric()
+# Create custom color palette
+colors_custom <- c("cornsilk","orange", "#F44336",  "#F44336")
+breaks <- c(0, 2.5, 5, 100)
+
+# Create color function
+col_fun <- colorRampPalette(colors_custom)(100)
+
+# For heatmap with custom breaks
+col_fun <- colorRamp2(breaks, colors_custom)
+
+
+diff_nums_rec_perc_plot <- diff_nums_rec_perc[,c("RLEbackground","greenlist", "RPKM","RLERiP","spikein")]
+colnames(diff_nums_rec_perc_plot) <- c("Background", "Greenlist", "Library size", "Reads in Peak", "Spike-in" )
+diff_nums_rec_perc_plot <- diff_nums_rec_perc_plot[, c("Library size", "Background", "Greenlist", "Reads in Peak", "Spike-in" )]
+neg_exp_heatmap <- ComplexHeatmap:: Heatmap(diff_nums_rec_perc_plot,  
+                         cluster_columns=FALSE, cluster_rows=TRUE,
+                          col = col_fun,
+                         show_row_dend = FALSE,
+                         column_names_rot = 30,  # Add this line for horizontal column names
+                         row_names_side = "left", column_names_side = "top",
+                         row_names_gp = grid::gpar(fontsize = 7),
+                         name = "False positive \n rate %",rect_gp = gpar(col = "white", lwd = 2),
+                          row_title = "Random run", column_title = "Negative experiment",
+                         cell_fun = function(j, i, x, y, width, height, fill) {grid.text(sprintf("%.1f", diff_nums_rec_perc_plot[i, j]), 
+                                                                                         x, y, gp = gpar(fontsize = 8))},  
+
+)
+
+neg_exp_heatmap
+
+
+```
+
+
+
+```{r}
+
+pdf("figures_pdf/negative_exp_heatmap.pdf", width = 4, height = 5)
+neg_exp_heatmap
+dev.off()
+
+```
+
+

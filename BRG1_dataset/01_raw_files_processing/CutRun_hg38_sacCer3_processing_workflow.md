@@ -371,7 +371,7 @@ done
 | Trimming | `*_R2.trim.fastq.gz` | Trimmed reverse reads |
 | Alignment | `*_hg38_final.bam` | Processed human alignments |
 | Alignment | `*_sacCer3_final.bam` | Spike-in alignments |
-| BigWig | `*.bw` | Normalized signal tracks |
+| BigWig | `*.bw` | Signal tracks |
 | Peaks | `*_peaks.narrowPeak` | Called peaks |
 | Peaks | `*_summits.bed` | Peak summit positions |
 

@@ -22,5 +22,5 @@ ER_dataset
   - 03_figure_generation - code for figure generation*
 
 
-*Note: To render the html files in this repo (particular to view figures), prepend to the following URL including the https://  _https://html-preview.github.io/?url=_ 
+*Note: To render the html files in this repo (particularly to view figures), prepend to the following URL including the https://  _https://html-preview.github.io/?url=_ 
 For example: https://html-preview.github.io/?url=https://github.com/k-ambani/CUT-RUN_normalisation/blob/main/BRG1_dataset/03_figure_generation/analysis_visualisations_BRG1_annotated_peaks.html

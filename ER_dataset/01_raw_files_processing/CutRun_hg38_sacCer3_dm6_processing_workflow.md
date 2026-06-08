@@ -1,8 +1,8 @@
 # CUT&RUN Data Processing Workflow
 
-Workflow used for processing CUT&RUN sequencing data using a tribrid reference
+Workflow used for processing CUT&RUN sequencing data using a "tribrid" reference
 genome combining human (hg38), yeast (sacCer3), and Drosophila (dm6) sequences.
-Both sacCer3 and dm6 serve as spike-in controls for normalization.
+Both sacCer3 and dm6 serve as spike-in controls for normalisation.
 
 ## Overview
 
@@ -10,11 +10,10 @@ This workflow processes paired-end CUT&RUN sequencing data through the following
 
 1. Quality control (FastQC/MultiQC)
 2. Adapter trimming (BBDuk)
-3. Contamination screening (FastQ Screen)
-4. Alignment to tribrid genome (Bowtie2)
-5. BAM processing and filtering
-6. Signal track generation (BigWig)
-7. Peak calling (MACS2)
+3. Alignment to tribrid genome (Bowtie2)
+4. BAM processing and filtering
+5. Signal track generation (BigWig)
+6. Peak calling (MACS2)
 
 ## Software Requirements
 
@@ -23,7 +22,6 @@ This workflow processes paired-end CUT&RUN sequencing data through the following
 | FastQC | 0.11.5 | Quality control |
 | MultiQC | 1.8+ | Report aggregation |
 | BBMap/BBDuk | — | Adapter trimming |
-| FastQ Screen | 0.15.3 | Contamination detection |
 | Bowtie2 | 2.3.4.1 | Read alignment |
 | SAMtools | 1.9 | BAM manipulation |
 | Sambamba | 0.6.7 | BAM sorting/indexing |
@@ -187,81 +185,7 @@ multiqc --filename multiqc_trimmed.html *fastqc.zip
 
 ---
 
-## 4. Contamination Screening (FastQ Screen)
-
-Screen trimmed reads for potential contamination from other organisms.
-
-**`fastq_screen_input.sh`** — single-sample script called by the batch wrapper.
-
-```bash
-#!/bin/bash
-# =============================================================================
-# Contamination Screening: FastQ Screen (single sample)
-# Usage: sbatch fastq_screen_input.sh <sample.fastq.gz>
-# =============================================================================
-
-#SBATCH --job-name=fastq_screen
-#SBATCH --nodes=1
-#SBATCH --partition=rhel_short
-#SBATCH --mem=10G
-#SBATCH --cpus-per-task=8
-#SBATCH --time=10:00:00
-#SBATCH --mail-user=user@institute.edu
-#SBATCH --mail-type=ALL
-#SBATCH --output=fastq_screen-%j.out
-#SBATCH --error=fastq_screen-%j.err
-#SBATCH --container=/config/spack/containers/centos7/container.sif
-
-# --- Setup -------------------------------------------------------------------
-
-set -xe
-source /etc/profile.d/modules.sh
-
-# --- Paths -------------------------------------------------------------------
-
-fq=$1
-fastq_screen_dir="/path/to/FastQ-Screen"
-config_dir="/path/to/FastQ-Screen/FastQ_Screen_Genomes"
-output_dir="/path/to/project/results/fastq_screen"
-
-# --- Run FastQ Screen --------------------------------------------------------
-
-${fastq_screen_dir}/fastq_screen $fq \
-  --conf $config_dir/fastq_screen.conf \
-  --subset 0 \
-  --outdir $output_dir
-```
-
-**`fastq_screen_batch.sh`** — submits one job per FASTQ file.
-
-```bash
-#!/bin/bash
-# =============================================================================
-# Contamination Screening: FastQ Screen batch submission
-# Usage: bash fastq_screen_batch.sh
-# =============================================================================
-
-# --- Paths -------------------------------------------------------------------
-
-data_dir="/path/to/project/trim_data"
-script_dir="/path/to/project/scripts"
-
-mkdir -p "/path/to/project/results/fastq_screen/out_err"
-
-# --- Submit per-sample jobs --------------------------------------------------
-
-cd $data_dir
-
-for infile in *.fastq.gz; do
-  echo "Submitting FastQ Screen for $infile"
-  sbatch $script_dir/fastq_screen_input.sh $data_dir/$infile
-  sleep 1
-done
-```
-
----
-
-## 5. Alignment to Tribrid Genome (Bowtie2)
+## 4. Alignment to Tribrid Genome (Bowtie2)
 
 Align reads to the combined hg38/sacCer3/dm6 reference. Reads are then split by
 genome and filtered to produce final BAMs for the human (hg38), yeast (sacCer3),
@@ -503,7 +427,7 @@ done
 
 ---
 
-## 6. BigWig Generation
+## 5. BigWig Generation
 
 Generate RPKM-normalized signal tracks from the final hg38 BAMs for visualization.
 
@@ -580,7 +504,7 @@ done
 
 ---
 
-## 7. Peak Calling (MACS2)
+## 6. Peak Calling (MACS2)
 
 Peaks are called with an IgG negative control using an FDR threshold of q < 0.05.
 

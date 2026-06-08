@@ -20,8 +20,11 @@ module load R/4.5.0
 # --- Paths -------------------------------------------------------------------
 
 project_dir="/path/to/project"
+greenlist_resources_dir="/path/to/greenlistresources"
+
+
 bam_dir="$project_dir/results/bam_files/final_bams/hg38"
-bed_dir="$project_dir/R_analysis/greenlist_norm_scripts/CUT-RUN_greenlist-main"
+bed_dir="$greenlist_resources_dir/greenlist_norm_scripts/CUT-RUN_greenlist-main"
 out_dir="$project_dir/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/greenlist_normfacs"
 
 # --- Quantify reads over greenlist regions -----------------------------------

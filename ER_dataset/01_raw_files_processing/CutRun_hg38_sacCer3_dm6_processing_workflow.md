@@ -74,7 +74,6 @@ Assess raw sequencing data quality before processing.
 #SBATCH --mem=5G
 #SBATCH --cpus-per-task=10
 #SBATCH --time=5:00:00
-#SBATCH --mail-user=user@institute.edu
 #SBATCH --mail-type=ALL
 #SBATCH --output=fastqc-%j.out
 #SBATCH --error=fastqc-%j.err
@@ -124,7 +123,6 @@ Remove adapter sequences and low-quality bases from reads.
 #SBATCH --mem=5G
 #SBATCH --cpus-per-task=10
 #SBATCH --time=12:00:00
-#SBATCH --mail-user=user@institute.edu
 #SBATCH --mail-type=ALL
 #SBATCH --output=trim-%j.out
 #SBATCH --error=trim-%j.err
@@ -207,13 +205,10 @@ Chromosome names in the hybrid index carry species prefixes (`hg38_`, `sacCer3_`
 #SBATCH --nodes=1
 #SBATCH --mem=40G
 #SBATCH --cpus-per-task=15
-#SBATCH --partition=rhel_short
 #SBATCH --time=7:00:00
-#SBATCH --mail-user=user@institute.edu
 #SBATCH --mail-type=ALL
 #SBATCH --output=align-%j.out
 #SBATCH --error=align-%j.err
-#SBATCH --container=/config/spack/containers/centos7/container.sif
 
 # --- Setup -------------------------------------------------------------------
 
@@ -521,9 +516,7 @@ Peaks are called with an IgG negative control using an FDR threshold of q < 0.05
 #SBATCH --nodes=1
 #SBATCH --mem=12G
 #SBATCH --cpus-per-task=12
-#SBATCH --partition=rhel_short
 #SBATCH --time=12:00:00
-#SBATCH --mail-user=user@institute.edu
 #SBATCH --mail-type=ALL
 #SBATCH --output=macs2-%j.out
 #SBATCH --error=macs2-%j.err

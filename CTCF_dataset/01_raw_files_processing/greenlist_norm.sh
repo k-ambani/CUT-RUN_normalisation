@@ -9,7 +9,6 @@
 #SBATCH --mail-type=ALL
 #SBATCH --output=logs/greenlist-norm-%j.out
 #SBATCH --error=logs/greenlist-norm-%j.err
-#SBATCH --container=/path/to/container.sif  # adjust for your cluster
 
 # ── Environment ───────────────────────────────────────────────────────────────
 source /etc/profile.d/modules.sh

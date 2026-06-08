@@ -31,7 +31,6 @@ This workflow processes paired-end CUT&RUN sequencing data through the following
 - **Hybrid genome index**: Combined hg38 + sacCer3 Bowtie2 index
 - **Blacklist regions**: ENCODE hg38 blacklist (hg38-blacklist.v2.bed)
 - **Adapter sequences**: TruSeq adapter reference (truseq.fa.gz)
-- 
 ---
 
 ## 1. Directory Setup
@@ -202,7 +201,7 @@ samtools view -q 2 -F 0x04 -b -@ 14 ${INTERMEDIATE_DIR}/hg38/${SAMPLE}_hg38_dupm
 #------------------------------------------------------------------------------
 # SPLIT BY GENOME (sacCer3 - Spike-in)
 #------------------------------------------------------------------------------
-# Extract yeast-aligned reads for spike-in normalization
+# Extract yeast-aligned reads for spike-in normalisation
 samtools idxstats ${INTERMEDIATE_DIR}/${SAMPLE}_sorted.bam | \
     cut -f 1 | grep "sacCer3" | \
     xargs samtools view -@ 14 -hb ${INTERMEDIATE_DIR}/${SAMPLE}_sorted.bam | \
@@ -248,7 +247,7 @@ done
 
 ## 4. BigWig Generation
 
-Generate normalized signal tracks for visualization.
+Generate normalised signal tracks for visualisation.
 
 ```bash
 #!/bin/bash
@@ -269,10 +268,10 @@ cd ${INPUT_DIR}
 
 SAMPLE=$(basename ${BAM_FILE} _hg38_final.bam)
 
-# Generate RPKM-normalized BigWig
+# Generate RPKM-normalised BigWig
 # Parameters:
 #   --binSize 1: 1 bp resolution
-#   --normalizeUsing RPKM: Reads per kilobase per million normalization
+#   --normalizeUsing RPKM: Reads per kilobase per million normalisation
 
 bamCoverage \
     -b ${BAM_FILE} \

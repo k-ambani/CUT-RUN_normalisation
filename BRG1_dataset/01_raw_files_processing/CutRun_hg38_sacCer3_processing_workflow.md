@@ -379,7 +379,7 @@ done
 
 ## Notes
 
-- **Spike-in normalization**: The sacCer3 (yeast) alignments can be used to calculate spike-in normalization factors for cross-sample comparisons.
+- **Spike-in normalisation**: The sacCer3 (yeast) alignments can be used to calculate spike-in normalisation factors for cross-sample comparisons.
   
 - **Hybrid genome construction**: The hg38_sacCer3 hybrid index was created by concatenating the human (hg38) and yeast (sacCer3) reference genomes before indexing with Bowtie2.
 

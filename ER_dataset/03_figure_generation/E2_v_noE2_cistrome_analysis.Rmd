@@ -1,0 +1,131 @@
+---
+title: "E2 versus no E2 analysis"
+subtitle: "getting associated genes"
+author: "Krutika"
+date: "Last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: cosmo
+---
+
+
+# Prep
+
+```{r}
+rm(list=ls())
+```
+
+```{r, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(GenomicFeatures)
+library(GenomicRanges)
+library(RColorBrewer)
+library(ggrepel)
+library(ggplot2)
+library(UpSetR)
+library(dplyr)
+library(tidyr)
+library(tibble)
+```
+
+
+## Loading data
+```{r}
+
+load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/R_analysis/2.Diffbind/data/diffbind_analyse_workspace_2v2.RData")
+```
+
+
+
+## Getting peaks of interest
+```{r}
+
+padj_threshold <- 0.05
+
+# Extract significant peaks as GRanges from each dba object
+get_sig_gr <- function(dba_obj, padj = 0.05) {
+  gr <- dba.report(dba_obj, th = padj)
+  gr[seqnames(gr) %in% paste0("chr", c(1:22, "X", "Y"))]
+}
+
+bg_gr      <- get_sig_gr(dbObj_RLEbackground_list[[1]])
+rpkm_gr    <- get_sig_gr(dbObj_RPKMnorm_list[[1]])
+dm6_gr     <- get_sig_gr(dbObj_dm6norm_list[[1]])
+sacCer3_gr <- get_sig_gr(dbObj_sacCer3norm_list[[1]])
+
+# Union of background + RPKM, then exclude anything in dm6 + sacCer3
+union_bg_rpkm     <- GenomicRanges::reduce(append(bg_gr, rpkm_gr),       ignore.strand = TRUE)
+union_dm6_sacCer3 <- GenomicRanges::reduce(append(dm6_gr, sacCer3_gr),   ignore.strand = TRUE)
+
+result <- subsetByOverlaps(union_bg_rpkm, union_dm6_sacCer3, invert = TRUE)
+
+
+```
+
+
+
+# Saving peak set
+```{r, eval=FALSE}
+result_df <- as.data.frame(result)
+
+write.table(
+  result_df[, c("seqnames", "start", "end", "strand")],
+  file      = "bg_rpkm_not_dm6_sacCer3.bed",
+  sep       = "\t",
+  quote     = FALSE,
+  row.names = FALSE,
+  col.names = FALSE
+)
+
+```
+
+This peakset was uploaded onto https://dbtoolkit.cistrome.org/ to the final panel "What factors have a significant binding overlap with your peak set?" and the table of results were saved. 
+
+```{r}
+
+bg_rpkm_not_dm6_sacCer3_bed_result <- read_csv("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/R_analysis/7.E2_v_noE2_unique_peaks_analysis/bg_rpkm_not_dm6_sacCer3.bed_result.csv")
+
+```
+
+
+# Plotting
+
+```{r}
+
+# Order factors by median GIGGLE score for a cleaner plot
+bg_rpkm_not_dm6_sacCer3_bed_result <- bg_rpkm_not_dm6_sacCer3_bed_result %>%
+  mutate(Factor = reorder(Factor, GIGGLE_score, FUN = max))
+
+cistrome_plot <- ggplot(bg_rpkm_not_dm6_sacCer3_bed_result, aes(x = Factor, y = GIGGLE_score)) +
+  #geom_boxplot(outlier.shape = NA, fill = "grey85", colour = "black", width = 0.6) +
+geom_jitter(aes(fill = Factor), shape = 21, colour = "black",
+              width = 0.2, size = 1.7, alpha = 0.7, show.legend = FALSE) +
+     scale_x_discrete(limits = rev) +
+  labs(
+    title = "GIGGLE score by factor (Cistrome Toolkit)",
+    x     = "Factor",
+    y     = "GIGGLE score"
+  ) +
+  theme_bw() +
+  theme(
+    plot.title   = element_text(hjust = 0.5),
+    axis.text.x  = element_text(angle = 45, hjust = 1, size = 9),
+    axis.text.y  = element_text(size = 9)
+  )
+
+cistrome_plot
+```
+
+
+```{r}
+
+pdf("cistrome_plot.pdf", width = 7, height = 3)
+cistrome_plot
+dev.off()
+
+```

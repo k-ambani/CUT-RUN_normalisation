@@ -1,6 +1,6 @@
 #!/bin/bash
 # =============================================================================
-# Greenlist Normalization: Read Quantification and Size Factor Estimation
+# Greenlist Normalisation: Read Quantification and Size Factor Estimation
 # Usage: sbatch greenlist_norm.sh
 # =============================================================================
 
@@ -21,7 +21,7 @@ module load R/4.5.0
 
 project_dir="/path/to/project"
 bam_dir="$project_dir/results/bam_files/final_bams/hg38"
-bed_dir="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/greenlist_norm_scripts/CUT-RUN_greenlist-main"
+bed_dir="$project_dir/R_analysis/greenlist_norm_scripts/CUT-RUN_greenlist-main"
 out_dir="$project_dir/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/greenlist_normfacs"
 
 # --- Quantify reads over greenlist regions -----------------------------------

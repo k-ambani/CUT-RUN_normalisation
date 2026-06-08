@@ -1,0 +1,177 @@
+---
+title: "Euclidean distance between samples by normalisation method"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+# Prep
+
+
+```{r, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(ComplexHeatmap)
+library(UpSetR)
+library(circlize)
+library(ggplot2)
+  
+```
+
+
+## Loading data
+```{r}
+
+load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/R_analysis/2.Diffbind/data/diffbind_analyse_workspace_2v2.RData")
+
+```
+
+## Useful function
+```{r}
+start_col  <- 6   # <-- move here
+
+# Helper to extract peakset df from a dbObj
+extract_peakset <- function(dbObj) {
+  dbObj %>%
+    dba.peakset(., bRetrieve = TRUE) %>%
+    as.data.frame()
+}
+```
+
+
+```{r}
+no_norm <- extract_peakset(dbObj_RPKMnorm)
+
+# Build the "No normalisation" peakset by unscaling library size factors
+scale_factors   <- dbObj_RPKMnorm$norm$DESeq2$norm.facs
+no_norm[, start_col:ncol(no_norm)] <- sweep(
+  no_norm[, start_col:ncol(no_norm)], 2, scale_factors, `/`
+)
+
+
+```
+
+
+```{r}
+# List of peakset dataframes
+peakset_list <- list(
+  "No normalisation" = no_norm,
+  "Background"       = extract_peakset(dbObj_RLEbackground),
+  "Library size"     = extract_peakset(dbObj_RPKMnorm),
+  "Greenlist"        = extract_peakset(dbObj_greenlist),
+  "dm6 spike-in"     = extract_peakset(dbObj_dm6norm),
+  "sacCer3 spike-in" = extract_peakset(dbObj_sacCer3norm),
+  "Reads-in-peak"    = extract_peakset(dbObj_RLERiP)
+)
+
+norm_names <- names(peakset_list)
+baseline   <- norm_names[1]
+```
+
+
+
+# Calculating replicate distances
+```{r}
+get_replicate_distances <- function(peaks_df, norm_name) {
+  
+  sample_cols <- peaks_df[, start_col:ncol(peaks_df)]
+  sample_t    <- t(sample_cols)
+  
+  rownames(sample_t) <- rownames(sample_t) %>%
+    gsub("^MCF7\\.", "", .) %>%
+    gsub("\\.ER$",   "", .) %>%
+    gsub("R1", "Rep1", .) %>%
+    gsub("R2", "Rep2", .)
+  
+  euc_dist_matrix   <- as.matrix(dist(sample_t, method = "euclidean"))
+  sample_names      <- rownames(euc_dist_matrix)
+  conditions        <- gsub("\\.Rep[0-9]+$", "", sample_names)
+  unique_conditions <- unique(conditions)
+  
+  map_dfr(unique_conditions, function(cond) {
+    idx <- which(conditions == cond)
+    if (length(idx) == 2) {
+      data.frame(
+        condition   = cond,
+        sample1     = sample_names[idx[1]],
+        sample2     = sample_names[idx[2]],
+        distance    = euc_dist_matrix[idx[1], idx[2]],
+        norm_method = norm_name
+      )
+    }
+  })
+}
+
+```
+
+```{r}
+
+all_distances <- map2_dfr(peakset_list, norm_names, get_replicate_distances)
+
+# --- missing chunk ---
+baseline_distances <- all_distances %>%
+  filter(norm_method == baseline) %>%
+  select(condition, baseline_dist = distance)
+
+all_distances <- all_distances %>%
+  left_join(baseline_distances, by = "condition") %>%
+  mutate(
+    delta_distance = distance - baseline_dist,
+    condition      = factor(condition),
+    norm_method    = factor(norm_method, levels = norm_names)
+  )
+# ---------------------
+
+```
+
+
+# Plotting
+```{r, fig.height=3,fig.width=8.5}
+custom_colours <- c("#d31f11", "#f47a00", "#62c8d3", "#007191")
+
+
+all_distances$condition <- all_distances$condition %>% gsub("CSS.","",.) %>% gsub("Complete.","",.)
+
+
+rep_dist <- all_distances %>%
+  #filter(norm_method != baseline) %>%
+  ggplot(aes(x     = norm_method,
+             y     = delta_distance,
+             fill  = condition,
+             shape = condition)) +
+  geom_hline(yintercept = 0, linetype = "dashed", colour = "grey50", linewidth = 0.5) +
+  geom_point(size     = 4,
+             stroke   = 0.6,
+             colour   = "black",
+             position = position_jitter(width = 0.1, seed = 42)) +
+  scale_fill_manual(values  = custom_colours) +
+  scale_shape_manual(values = c(21, 22, 23, 24)) +
+  labs(title = "Change in Replicate Euclidean Distance vs Baseline Normalisation",
+       x     = "Normalisation Method",
+       y     = paste0("\u0394 Euclidean Distance (vs ", baseline, ")"),
+       fill  = "Condition",
+       shape = "Condition") +
+  theme_bw() +
+  theme(axis.text.x     = element_text(size = 9),
+        plot.title      = element_text(face = "bold", size = 13),
+        legend.position = "right",
+       # legend.title    = element_text(face = "bold"),
+        legend.key.size = unit(0.8, "cm"))
+
+rep_dist
+
+```
+
+
+
+```{r}
+pdf("./replicate_distance.pdf", width = 8.5, height = 3)
+rep_dist
+dev.off()
+
+```

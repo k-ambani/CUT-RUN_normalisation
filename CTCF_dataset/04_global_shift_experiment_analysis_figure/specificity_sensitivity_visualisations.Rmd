@@ -1,0 +1,208 @@
+---
+title: "Global shift Simulations visualisations supplementary figures"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    theme: united
+    toc: yes
+    toc_float:
+      collapsed: true
+---
+
+
+# Prep
+
+```{r, echo=FALSE, results=FALSE}
+rm(list=ls())
+```
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+library(tidyverse)
+library(magrittr)
+library(scales)
+library(ComplexHeatmap)
+library(cowplot)
+library(DT)
+library(RColorBrewer)
+library(ggrepel)
+library(dplyr)
+library(ggpubr)
+library(DESeq2)
+library(ggplot2)
+library(ggsci)
+library(gplots)
+library(clusterProfiler)
+library(circlize)
+
+
+```
+
+
+# Choosing the fraction of peaks inflated (can be 0.1, 0.5 or 0.7)
+
+```{r}
+frac_inflate_num = 0.1
+
+```
+
+# Loading data
+```{r}
+
+experiment_summary_list <- list()
+
+norm_methods <- c("LS", "RLE_RiP", "RLE_BG","greenlist") #Excluding greenlist
+experiment_metrics <- data.frame(rand_run = 1:30)
+for(frac_inflate in frac_inflate_num){
+  for(inflation_factor_choose in c(2,5,10,20)){
+    experiment_summary_df <- readRDS(paste("/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/06.Global_shift/results/frac_inflate_",frac_inflate,"/inflation_factor_",inflation_factor_choose,"/experiment_summary.rds",sep=""))
+ experiment_summary_list[[as.character(frac_inflate)]][[as.character(inflation_factor_choose)]] <-experiment_summary_df     
+
+       for(norm_method in norm_methods){
+        exp_name =paste("frac-",frac_inflate,"_fact-",inflation_factor_choose,sep = "")
+
+         experiment_metrics[paste("sensitivity_",norm_method,"_",exp_name,sep = "")] <- experiment_summary_df[paste0(norm_method,"_I_TP")]/(experiment_summary_df[paste0(norm_method,"_I_TP")]+experiment_summary_df[paste0(norm_method,"_I_FN")]) * 100
+
+         experiment_metrics[paste("FDR_",norm_method,"_",exp_name,sep = "")] <- experiment_summary_df[paste0(norm_method,"_I_FP")]/(experiment_summary_df[paste0(norm_method,"_I_FP")]+experiment_summary_df[paste0(norm_method,"_I_TP")]) * 100
+
+      }
+       
+ 
+  }
+  }
+
+
+
+colnames(experiment_metrics) <- colnames(experiment_metrics) %>% gsub("LS","Library size",.) %>% gsub("greenlist", "Greenlist",.) %>% gsub("RLE_RiP","Reads in peak",.) %>% gsub("RLE_BG", "Background", .)
+
+```
+
+```{r}
+plotting_order <- c("Library size_fact-2", "Library size_fact-5", "Library size_fact-10" ,"Library size_fact-20" , 
+                    "Reads in peak_fact-2", "Reads in peak_fact-5", "Reads in peak_fact-10", "Reads in peak_fact-20",
+                    "Background_fact-2", "Background_fact-5","Background_fact-10", "Background_fact-20", 
+                    "Greenlist_fact-2",   "Greenlist_fact-5","Greenlist_fact-10", "Greenlist_fact-20")
+```
+
+
+# Sensitivity plots
+```{r}
+experiment_summary_sensitivity <- experiment_metrics[,grep("sensitivity",colnames(experiment_metrics))]
+colnames(experiment_summary_sensitivity) <- gsub("sensitivity_","",colnames(experiment_summary_sensitivity))
+experiment_summary_sensitivity_mat <- experiment_summary_sensitivity %>% as.matrix()
+
+```
+
+## heatmap
+```{r fig.height=7,fig.width=7}
+colnames(experiment_summary_sensitivity) <- gsub("sensitivity_","",colnames(experiment_summary_sensitivity)) %>% gsub(paste0("_frac-",frac_inflate),"",.)
+experiment_summary_sensitivity_mat <- experiment_summary_sensitivity %>% as.matrix()
+experiment_summary_sensitivity_mat <- experiment_summary_sensitivity_mat[,plotting_order]
+rownames(experiment_summary_sensitivity_mat) <- paste("Run", c(1:30))
+
+# Assign groups of 4 columns: 1,1,1,1,2,2,2,2,3,3,3,3,...
+n_cols <- ncol(experiment_summary_sensitivity_mat)
+
+column_groups <- rep(seq_len(ceiling(n_cols / 4)), each = 4)[1:n_cols]
+
+
+
+ht <- Heatmap(
+  experiment_summary_sensitivity_mat,  
+  cluster_columns = FALSE, cluster_rows = TRUE,
+  col = hcl.colors(12, "YlOrRd"),
+  column_split = column_groups,          # grouping by 4
+  gap = unit(5, "mm"),                   # control gap size
+  row_names_side = "left", 
+  column_names_side = "top",
+  row_names_gp = gpar(fontsize = 8),
+  rect_gp = gpar(col = "white", lwd = 2),
+  show_row_dend = FALSE,
+  name = "True positive rate %",
+  row_title = "Random run", 
+  column_title = paste("Sensitivity experiment - ",frac_inflate, "fraction of peaks inflated"),
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    grid.text(sprintf("%.1f", experiment_summary_sensitivity_mat[i, j]), 
+              x, y, gp = gpar(fontsize = 5))
+  },
+  heatmap_legend_param = list(
+    direction = "horizontal",
+    title_position = "lefttop"
+  )
+)
+
+draw(ht, heatmap_legend_side = "top")
+
+```
+
+
+# FDR 
+
+```{r}
+experiment_summary_FDR<- experiment_metrics[,grep("FDR",colnames(experiment_metrics))]
+colnames(experiment_summary_FDR) <- gsub("FDR_","",colnames(experiment_summary_FDR))
+
+experiment_summary_FDR_mat <- experiment_summary_FDR %>% as.matrix()
+
+
+
+
+```
+
+## heatmap
+```{r fig.height=7,fig.width=7}
+
+colnames(experiment_summary_FDR) <- gsub("FDR_","",colnames(experiment_summary_FDR)) %>% gsub(paste0("_frac-",frac_inflate),"",.)
+
+experiment_summary_FDR_mat <- experiment_summary_FDR %>% as.matrix()
+rownames(experiment_summary_FDR_mat) <- paste("Run", c(1:30))
+
+ 
+
+
+experiment_summary_FDR_mat[is.infinite(experiment_summary_FDR_mat)] <- NA
+experiment_summary_FDR_mat <- experiment_summary_FDR_mat[,plotting_order] 
+
+
+
+ # Create custom color palette
+colors_custom <- c("lightblue","blue","darkblue", "red",  "red")
+breaks <- c(0, 2.5, 5, 10, 100)
+
+# Create color function
+col_fun <- colorRampPalette(colors_custom)(100)
+
+# For heatmap with custom breaks
+col_fun <- colorRamp2(breaks, colors_custom)
+
+
+
+
+ht <- Heatmap(
+  experiment_summary_FDR_mat,  
+  cluster_columns = FALSE, cluster_rows = TRUE,
+  col = col_fun,
+  column_split = column_groups,          # grouping by 4
+  gap = unit(5, "mm"),                   # control gap size
+  row_names_side = "left", 
+  column_names_side = "top",
+  row_names_gp = gpar(fontsize = 8),
+  rect_gp = gpar(col = "white", lwd = 2),
+  show_row_dend = FALSE,
+  name = "True positive rate %",
+  row_title = "Random run", 
+  column_title = paste("False Discovery Rate - ",frac_inflate, "fraction of peaks inflated"),
+  cell_fun = function(j, i, x, y, width, height, fill) {
+    grid.text(sprintf("%.1f", experiment_summary_sensitivity_mat[i, j]), 
+              x, y, gp = gpar(fontsize = 5))
+  },
+  heatmap_legend_param = list(
+    direction = "horizontal",
+    title_position = "lefttop"
+  )
+)
+
+draw(ht, heatmap_legend_side = "top")
+
+
+```
+

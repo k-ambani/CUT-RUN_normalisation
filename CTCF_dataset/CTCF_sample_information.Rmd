@@ -1,0 +1,183 @@
+---
+title: "sample information"
+output: html_document
+---
+
+
+```{r}
+rm(list=ls())
+
+```
+
+```{r, echo=FALSE, results=FALSE, message=FALSE}
+library(tidyverse)
+library(DiffBind)
+library(magrittr)
+library(DESeq2)
+library(scales)
+```
+
+#  Nonfiltered bams
+# make sample information and load read data for diffbind
+## spikein normalisation manually implemented when dba.counts is created
+```{r}
+rm(list=ls())
+working_dir <- "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations"
+
+# bam files directory
+hg38_bamReads_dir <-  file.path(paste(working_dir,"/results/bam_files/final_bams/hg38",sep=""), list.files(path = paste(working_dir,"/results/bam_files/final_bams/hg38",sep=""), pattern = "_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam$"))
+
+
+# Peaks directory
+Peaks_dir_macs2_with_no_input <-file.path(paste(working_dir,"/results/macs2/macs2_q0.01/with_no_neg_control/narrowPeak",sep=""),list.files(path = paste(working_dir,"/results/macs2/macs2_q0.01/with_no_neg_control/narrowPeak",sep=""), pattern = "*narrowPeak$"))
+
+
+# check peaks and bam samples are in the same order
+peaks_names <- Peaks_dir_macs2_with_no_input %>% gsub("_peaks.narrowPeak","",.) %>% gsub("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/macs2/macs2_q0.01/with_no_neg_control/narrowPeak/","",.)
+bam_names <- hg38_bamReads_dir %>% gsub("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/bam_files/final_bams/hg38/","",.) %>% gsub("_Homo_sapiens_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam","",.)
+table(peaks_names == bam_names)
+
+# SampleID
+SampleID <- bam_names
+
+list.files(path = paste(working_dir,"/results/bam_files/final_bams/hg38",sep=""),  pattern = "_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam$") %>% 
+  gsub("_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam", "", .)
+
+SampleID <- SampleID %>% gsub("0_6", "0.6",.)
+SampleID <- SampleID %>% gsub("2_5", "2.5",.)
+SampleID <- SampleID %>% gsub("7_5", "7.5",.)
+SampleID <- SampleID %>% gsub("_Homo_sapiens_OTHER_hg38_nodm6", "",.)
+SampleID <- SampleID %>% gsub("_PS_HsDm_CTCF", "",.)
+SampleID <- SampleID %>% gsub("_Cut_and_Run", "",.)
+SampleID <- SampleID %>% gsub("0602_", "",.)
+SampleID <- SampleID %>% gsub("_GSM", "-GSM",.)
+
+sample_information <- data.frame(SampleID = SampleID, 
+                                 bamReads = hg38_bamReads_dir,
+                                 Peaks = Peaks_dir_macs2_with_no_input)
+
+
+#narrow because looking at transcription factors. 
+sample_information$PeakCaller <- "narrow"
+# generate the 3 columns (cell line, treatment, replicate number) from the temp column
+sample_information <- sample_information %>% separate(SampleID, into = c( "Antibody", "Condition"), sep = "_", remove = FALSE)
+sample_information$CellLine <- "K562"
+sample_information$SampleID <- paste(sample_information$Antibody,sample_information$Condition,sep="_")
+
+```
+
+
+# Cleaning and reshaping bam count reads for spike-in normalisation
+
+```{r}
+summary_bam_counts <- read_tsv(paste(working_dir,"/results/summary_hg38_dm6_bam_counts.txt",sep=""))
+
+col_names <- names(summary_bam_counts) %>% strsplit(split=" ") %>% unlist()
+summary_bam_counts <- separate(summary_bam_counts,1,into=col_names,sep=" ")
+
+SampleID <- summary_bam_counts$basename %>% gsub("0_6", "0.6",.)
+SampleID <- SampleID %>% gsub("2_5", "2.5",.)
+SampleID <- SampleID %>% gsub("7_5", "7.5",.)
+SampleID <- SampleID %>% gsub("_Homo_sapiens_OTHER", "",.)
+SampleID <- SampleID %>% gsub("_PS_HsDm_CTCF", "",.)
+SampleID <- SampleID %>% gsub("_Cut_and_Run", "",.)
+SampleID <- SampleID %>% gsub("0602_", "",.)
+SampleID <- SampleID %>% gsub("_GSM", "-GSM",.)
+
+summary_bam_counts$basename <- SampleID
+
+summary_bam_counts <- summary_bam_counts %>% separate(basename, into = c( "Antibody", "Condition"), sep = "_", remove = FALSE)
+summary_bam_counts[,grepl("bam_count",colnames(summary_bam_counts))] <- lapply(summary_bam_counts[,grepl("bam_count",colnames(summary_bam_counts))], as.numeric)
+summary_bam_counts$dm6_reads_norm_scale <- summary_bam_counts$dm6_intermediate_bam_counts/mean(summary_bam_counts$dm6_intermediate_bam_counts)
+
+
+sample_information <- full_join(sample_information,summary_bam_counts)
+sample_information$lib_size_normaliser_calc <- sample_information$hg38_final_bam_counts/mean(sample_information$hg38_final_bam_counts)
+```
+
+
+# removing unwanted samples
+```{r}
+# removing "disrupted" sample
+sample_information <- sample_information[!grepl("disrupted",sample_information$SampleID),]
+# removing samples with low alignment
+sample_information <- sample_information[!grepl("5s",sample_information$SampleID),]
+
+
+```
+
+
+
+```{r}
+nruns = 30
+```
+
+```{r}
+rand_combos_A <- data.frame(matrix(nrow=nruns,ncol=6))
+names(rand_combos_A) <- c("A1","A2","A3","B1","B2","B3")
+sample_information_randn = list()
+
+set.seed(3)
+for (nrun in 1:nruns){
+  rand_combos_A[nrun,1:6] <- t(sample(sample_information %>% nrow(),6) %>% as.vector())
+  sample_information_randn[[nrun]] <- sample_information[rand_combos_A[nrun,] %>% as.numeric(),]
+  sample_information_randn[[nrun]]$Factor <- c("A","A","A","B","B","B")
+  sample_information_randn[[nrun]]$Replicate <- c(1,2,3,1,2,3)
+
+}
+
+
+```
+
+
+
+# Getting greenlist norm factors within ea. comparison
+
+```{r}
+
+input = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/01.Greenlist_norm_calcs/glist_quant.tsv"
+counts = read.delim(file = input,header=T,row.names = 1,check.names = F)
+colnames(counts) <- paste0("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/bam_files/final_bams/hg38/",colnames(counts),".bam")
+
+
+for(j in 1:nrun){
+#j=2
+counts_nrun <- counts[,match(sample_information_randn[[j]]$bamReads,colnames(counts))]
+sf = estimateSizeFactorsForMatrix(counts_nrun)
+sf = as.data.frame(sf)
+sf$greenlist_normalizer = (1/sf$sf)
+sf$bamReads <- rownames(sf)
+
+sample_information_randn[[j]] <- full_join(sample_information_randn[[j]],sf)
+#  rm(sf)
+  
+}
+
+```
+
+
+```{r, eval=FALSE}
+rand_comb_rec <- c()
+for (i in 1:nruns){
+
+  rand_comb_rec[i] <-   paste(paste(sample_information_randn[[i]]$Condition[sample_information_randn[[i]]$Factor=="B"],collapse = ","),paste(sample_information_randn[[i]]$Condition[sample_information_randn[[i]]$Factor=="A"],collapse = ","),sep="vs") %>% gsub("million","mill",.)
+  
+}
+
+
+comparison_table <- data_frame(runs = 1:nrun, comparison = rand_comb_rec %>% gsub("vs"," vs ",. ) %>% gsub(",", ", ",.))
+write.csv(comparison_table, file = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/list_of_comps.csv")
+
+```
+
+
+
+```{r}
+
+saveRDS(sample_information,file= file.path("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_all.rds"))
+
+save.image(file=paste("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_workspace.RData",sep=""))
+
+saveRDS(sample_information_randn, file= file.path("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_randn.rds"))
+
+```

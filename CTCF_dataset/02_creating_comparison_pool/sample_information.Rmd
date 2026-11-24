@@ -16,7 +16,7 @@ library(scales)
 ```
 
 # Overview
-# Constructs sample metadata, loads BAM read counts, computes spike-in and
+# Constructs sample metadata dataframe including the paths to the BAM and peak files, computes spike-in and
 # greenlist normalisation factors, and generates random group comparisons
 # for downstream DiffBind analysis.
 
@@ -192,7 +192,8 @@ for (i in seq_len(nruns)) {
 # 7. Save outputs
 
 ```{r save-outputs}
-# Summary table of random comparisons
+
+# Summary table of random comparisons found in Supplementary Table 2
 comparison_table <- tibble(
     run        = seq_len(nruns),
     comparison = sapply(seq_len(nruns), function(i) {

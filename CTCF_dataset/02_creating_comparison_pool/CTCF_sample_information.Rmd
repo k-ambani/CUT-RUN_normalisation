@@ -4,11 +4,6 @@ output: html_document
 ---
 
 
-```{r}
-rm(list=ls())
-
-```
-
 ```{r, echo=FALSE, results=FALSE, message=FALSE}
 library(tidyverse)
 library(DiffBind)
@@ -17,11 +12,14 @@ library(DESeq2)
 library(scales)
 ```
 
-#  Nonfiltered bams
-# make sample information and load read data for diffbind
-## spikein normalisation manually implemented when dba.counts is created
+
+Overview: 
+Constructs sample metadata with paths to BAM & peak files, computes spike-in and
+greenlist normalisation factors, and generates random group comparisons
+for downstream DiffBind analysis.
+
+---
 ```{r}
-rm(list=ls())
 working_dir <- "/path/to/CTCF_dataset"
 
 # bam files directory

@@ -1,1 +1,1 @@
-If I could have my time over, I would create 
+If I could have my time over, I would save a workspace that had all the comparisons in the dba.counts format. That would save a lot of re-computation of identical objects downstream. 

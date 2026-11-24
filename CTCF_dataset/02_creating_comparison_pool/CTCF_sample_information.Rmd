@@ -22,7 +22,7 @@ library(scales)
 ## spikein normalisation manually implemented when dba.counts is created
 ```{r}
 rm(list=ls())
-working_dir <- "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations"
+working_dir <- "/path/to/CTCF_dataset"
 
 # bam files directory
 hg38_bamReads_dir <-  file.path(paste(working_dir,"/results/bam_files/final_bams/hg38",sep=""), list.files(path = paste(working_dir,"/results/bam_files/final_bams/hg38",sep=""), pattern = "_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam$"))
@@ -33,8 +33,8 @@ Peaks_dir_macs2_with_no_input <-file.path(paste(working_dir,"/results/macs2/macs
 
 
 # check peaks and bam samples are in the same order
-peaks_names <- Peaks_dir_macs2_with_no_input %>% gsub("_peaks.narrowPeak","",.) %>% gsub("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/macs2/macs2_q0.01/with_no_neg_control/narrowPeak/","",.)
-bam_names <- hg38_bamReads_dir %>% gsub("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/bam_files/final_bams/hg38/","",.) %>% gsub("_Homo_sapiens_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam","",.)
+peaks_names <- Peaks_dir_macs2_with_no_input %>% gsub("_peaks.narrowPeak","",.) %>% gsub("/path/to/CTCF_dataset/results/macs2/macs2_q0.01/with_no_neg_control/narrowPeak/","",.)
+bam_names <- hg38_bamReads_dir %>% gsub("/path/to/CTCF_dataset/results/bam_files/final_bams/hg38/","",.) %>% gsub("_Homo_sapiens_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam","",.)
 table(peaks_names == bam_names)
 
 # SampleID
@@ -135,9 +135,9 @@ for (nrun in 1:nruns){
 
 ```{r}
 
-input = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/01.Greenlist_norm_calcs/glist_quant.tsv"
+input = "/path/to/CTCF_dataset/R_analysis_final/01.Greenlist_norm_calcs/glist_quant.tsv"
 counts = read.delim(file = input,header=T,row.names = 1,check.names = F)
-colnames(counts) <- paste0("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/bam_files/final_bams/hg38/",colnames(counts),".bam")
+colnames(counts) <- paste0("/path/to/CTCF_dataset/results/bam_files/final_bams/hg38/",colnames(counts),".bam")
 
 
 for(j in 1:nrun){
@@ -166,7 +166,7 @@ for (i in 1:nruns){
 
 
 comparison_table <- data_frame(runs = 1:nrun, comparison = rand_comb_rec %>% gsub("vs"," vs ",. ) %>% gsub(",", ", ",.))
-write.csv(comparison_table, file = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/list_of_comps.csv")
+write.csv(comparison_table, file = "/path/to/CTCF_dataset/R_analysis_final/02.Sample_information/data/list_of_comps.csv")
 
 ```
 
@@ -174,10 +174,10 @@ write.csv(comparison_table, file = "/data/gpfs/projects/punim2745/03.CUTRUN_norm
 
 ```{r}
 
-saveRDS(sample_information,file= file.path("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_all.rds"))
+saveRDS(sample_information,file= file.path("/path/to/CTCF_dataset/R_analysis_final/02.Sample_information/data/sample_information_all.rds"))
 
-save.image(file=paste("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_workspace.RData",sep=""))
+save.image(file=paste("/path/to/CTCF_dataset/R_analysis_final/02.Sample_information/data/sample_information_workspace.RData",sep=""))
 
-saveRDS(sample_information_randn, file= file.path("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_randn.rds"))
+saveRDS(sample_information_randn, file= file.path("/path/to/CTCF_dataset/R_analysis_final/02.Sample_information/data/sample_information_randn.rds"))
 
 ```

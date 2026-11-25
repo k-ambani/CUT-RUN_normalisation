@@ -1494,7 +1494,7 @@ border-radius: 0px;
 <h1>Prep</h1>
 <pre class="r"><code>### loading data
 
-diff_nums_rec &lt;- readRDS(&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/04.Negative_exp/data/diff_nums_rec.rds&quot;)</code></pre>
+diff_nums_rec &lt;- readRDS(&quot;/path/to/project/R_analysis_final/04.Negative_exp/data/diff_nums_rec.rds&quot;)</code></pre>
 <div id="converting-to-percentages" class="section level3">
 <h3>converting to percentages</h3>
 <pre class="r"><code>diff_nums_rec$RPKM_perc &lt;- diff_nums_rec$RPKM_diff_regions*100/diff_nums_rec$num_of_peaks

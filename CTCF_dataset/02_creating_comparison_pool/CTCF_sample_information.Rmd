@@ -22,7 +22,7 @@ library(scales)
 ## spikein normalisation manually implemented when dba.counts is created
 ```{r}
 rm(list=ls())
-working_dir <- "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations"
+working_dir <- "/path/to/project"
 
 # bam files directory
 hg38_bamReads_dir <-  file.path(paste(working_dir,"/results/bam_files/final_bams/hg38",sep=""), list.files(path = paste(working_dir,"/results/bam_files/final_bams/hg38",sep=""), pattern = "_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam$"))

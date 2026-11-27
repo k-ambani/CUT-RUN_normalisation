@@ -1,0 +1,74 @@
+---
+title: "data-specific-peaks cistrome figures"
+subtitle: "getting associated genes"
+author: "Krutika"
+date: "Last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: cosmo
+---
+
+
+# Prep
+
+```{r}
+rm(list=ls())
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+files <- list.files("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/bam_files/final_bams/hg38/insert_size_dist", pattern = "_insert_size_metrics.txt$", full.names = TRUE)
+
+read_hist <- function(f) {
+  lines <- readLines(f)
+  start <- grep("^## HISTOGRAM", lines) + 1
+  h <- read.delim(text = lines[start:length(lines)], check.names = FALSE)
+  h <- h[!is.na(h[[1]]), ]
+  data.frame(
+    sample      = sub("_insert_size_metrics.txt$", "", basename(f)),
+    insert_size = h[[1]],
+    count       = rowSums(h[, -1, drop = FALSE], na.rm = TRUE)  # sums FR/RF/tandem columns if present
+  )
+}
+df <- bind_rows(lapply(files, read_hist))
+
+df$sample <- sub("-native_S.*$", "", df$sample)
+
+# Original order (alphabetical on the full names, as ggplot did before)
+orig_levels <- sort(unique(df$sample))
+
+# Remove everything before and including "MCF7-Par", plus any leftover leading - or _
+strip_prefix <- function(x) sub("^.*MCF7-Par[-_]*", "", x)
+
+df$sample <- factor(strip_prefix(df$sample), levels = strip_prefix(orig_levels))
+
+df <- df %>%
+  group_by(sample) %>%
+  mutate(prop = count / sum(count)) %>%
+  ungroup()
+
+p <- ggplot(df, aes(insert_size, prop, colour = sample)) +
+  geom_line(linewidth = 0.6) +
+  coord_cartesian(xlim = c(0, 800)) +
+  labs(x = "Fragment length (bp)", y = "Proportion of fragments") +
+  theme_bw(base_size = 14) +
+theme_bw(base_size = 14) +
+  theme(
+    axis.title   = element_text(size = 18),
+    axis.text    = element_text(size = 15),
+    legend.title = element_text(size = 15),
+    legend.text  = element_text(size = 14),
+    legend.position = "inside",
+    legend.position.inside = c(0.98, 0.98),
+    legend.justification = c(1, 1),
+    legend.background = element_rect(fill = alpha("white", 0.8), colour = "grey70")
+  )
+
+ggsave("insert_size_all_samples.png", p, width = 9, height = 5)
+```

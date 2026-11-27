@@ -1,5 +1,5 @@
 ---
-title: "E2 versus no E2 analysis"
+title: "data-specific-peaks cistrome figures"
 subtitle: "getting associated genes"
 author: "Krutika"
 date: "Last updated on `r Sys.Date()`"
@@ -33,99 +33,86 @@ library(tidyr)
 library(tibble)
 ```
 
-
-## Loading data
 ```{r}
 
-load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/R_analysis/2.Diffbind/data/diffbind_analyse_workspace_2v2.RData")
-```
+# Read data -------------------------------------------------------------
+cistrome_files <- list(
+  E2_noE2      = "noE2_E2_bg_rpkm_not_dm6_sacCer3.bed_result.csv",
+  sgER_sgC     = "sgER_sgControl_bg_rpkm_not_dm6_sacCer3.bed_result.csv",
+  sgControl_E2 = "sgControl_E2_bg_rpkm_not_dm6_sacCer3.bed_result.csv",
+  sgER_E2      = "sgER_E2_bg_rpkm_not_dm6_sacCer3.bed_result.csv"
+)
 
+cistrome_data <- lapply(cistrome_files, read_csv)
 
-
-## Getting peaks of interest
-```{r}
-
-padj_threshold <- 0.05
-
-# Extract significant peaks as GRanges from each dba object
-get_sig_gr <- function(dba_obj, padj = 0.05) {
-  gr <- dba.report(dba_obj, th = padj)
-  gr[seqnames(gr) %in% paste0("chr", c(1:22, "X", "Y"))]
-}
-
-bg_gr      <- get_sig_gr(dbObj_RLEbackground_list[[1]])
-rpkm_gr    <- get_sig_gr(dbObj_RPKMnorm_list[[1]])
-dm6_gr     <- get_sig_gr(dbObj_dm6norm_list[[1]])
-sacCer3_gr <- get_sig_gr(dbObj_sacCer3norm_list[[1]])
-
-# Union of background + RPKM, then exclude anything in dm6 + sacCer3
-union_bg_rpkm     <- GenomicRanges::reduce(append(bg_gr, rpkm_gr),       ignore.strand = TRUE)
-union_dm6_sacCer3 <- GenomicRanges::reduce(append(dm6_gr, sacCer3_gr),   ignore.strand = TRUE)
-
-result <- subsetByOverlaps(union_bg_rpkm, union_dm6_sacCer3, invert = TRUE)
-
-
-```
-
-
-
-# Saving peak set
-```{r, eval=FALSE}
-result_df <- as.data.frame(result)
-
-write.table(
-  result_df[, c("seqnames", "start", "end", "strand")],
-  file      = "bg_rpkm_not_dm6_sacCer3.bed",
-  sep       = "\t",
-  quote     = FALSE,
-  row.names = FALSE,
-  col.names = FALSE
+# Plot titles (adjust the comparison wording if needed) ---------------------
+cistrome_titles <- c(
+  E2_noE2      = "E2 vs noE2 (Cistrome Toolkit)",
+  sgER_sgC     = "sgER vs sgControl (Cistrome Toolkit)",
+  sgControl_E2 = "sgControl E2 (Cistrome Toolkit)",
+  sgER_E2      = "sgER E2 (Cistrome Toolkit)"
 )
 
 ```
 
-This peakset was uploaded onto https://dbtoolkit.cistrome.org/ to the final panel "What factors have a significant binding overlap with your peak set?" and the table of results were saved. 
-
 ```{r}
+# Plot function (unchanged) -----------------------------------------------
+plot_top_cistrome <- function(df, title, n_top = 5, top_factor = "ESR1") {
 
-bg_rpkm_not_dm6_sacCer3_bed_result <- read_csv("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/R_analysis/7.E2_v_noE2_unique_peaks_analysis/bg_rpkm_not_dm6_sacCer3.bed_result.csv")
+  top_factors <- df %>%
+    group_by(Factor) %>%
+    summarise(max_score = max(GIGGLE_score, na.rm = TRUE), .groups = "drop") %>%
+    slice_max(max_score, n = n_top, with_ties = FALSE) %>%
+    pull(Factor)
 
+  # Make sure ESR1 is plotted even if it isn't in the top n by score
+  top_factors <- union(top_factors, top_factor)
+
+  # Order remaining factors by max score (ascending, so highest is nearest the top),
+  # then append ESR1 last so it sits at the very top of the y-axis
+  factor_order <- df %>%
+    filter(Factor %in% top_factors, Factor != top_factor) %>%
+    group_by(Factor) %>%
+    summarise(max_score = max(GIGGLE_score, na.rm = TRUE), .groups = "drop") %>%
+    arrange(max_score) %>%
+    pull(Factor) %>%
+    as.character()
+
+  df_top <- df %>%
+    filter(Factor %in% top_factors) %>%
+    mutate(Factor = factor(Factor, levels = c(factor_order, top_factor)))
+
+  ggplot(df_top, aes(x = GIGGLE_score, y = Factor)) +
+    geom_jitter(aes(fill = Factor), shape = 21, colour = "black",
+                height = 0.2, width = 0, size = 1.7, alpha = 0.7,
+                show.legend = FALSE) +
+    labs(title = title,
+         x     = "GIGGLE score",
+         y     = "Factor") +
+    theme_bw() +
+    theme(plot.title  = element_text(hjust = 0.5),
+          axis.text.x = element_text(size = 9),
+          axis.text.y = element_text(size = 9))
+}
 ```
 
 
-# Plotting
-
 ```{r}
+# Build all four plots, then write one PDF per plot --------------------------
+cistrome_plots <- Map(plot_top_cistrome,
+                      df    = cistrome_data,
+                      title = cistrome_titles[names(cistrome_data)])
 
-# Order factors by median GIGGLE score for a cleaner plot
-bg_rpkm_not_dm6_sacCer3_bed_result <- bg_rpkm_not_dm6_sacCer3_bed_result %>%
-  mutate(Factor = reorder(Factor, GIGGLE_score, FUN = max))
+for (nm in names(cistrome_plots)) {
+  pdf(paste0(nm, "_cistrome_plot.pdf"), width = 4, height = 2)
+  print(cistrome_plots[[nm]])   # print() is needed inside a loop
+  dev.off()
+}
 
-cistrome_plot <- ggplot(bg_rpkm_not_dm6_sacCer3_bed_result, aes(x = Factor, y = GIGGLE_score)) +
-  #geom_boxplot(outlier.shape = NA, fill = "grey85", colour = "black", width = 0.6) +
-geom_jitter(aes(fill = Factor), shape = 21, colour = "black",
-              width = 0.2, size = 1.7, alpha = 0.7, show.legend = FALSE) +
-     scale_x_discrete(limits = rev) +
-  labs(
-    title = "GIGGLE score by factor (Cistrome Toolkit)",
-    x     = "Factor",
-    y     = "GIGGLE score"
-  ) +
-  theme_bw() +
-  theme(
-    plot.title   = element_text(hjust = 0.5),
-    axis.text.x  = element_text(angle = 45, hjust = 1, size = 9),
-    axis.text.y  = element_text(size = 9)
-  )
-
-cistrome_plot
-```
-
-
-```{r}
-
-pdf("cistrome_plot.pdf", width = 7, height = 3)
-cistrome_plot
-dev.off()
+# View individually in the notebook
+cistrome_plots$E2_noE2
+cistrome_plots$sgER_sgC
+cistrome_plots$sgControl_E2
+cistrome_plots$sgER_E2
 
 ```

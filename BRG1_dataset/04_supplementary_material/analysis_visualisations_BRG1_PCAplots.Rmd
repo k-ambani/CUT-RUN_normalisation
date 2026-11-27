@@ -1,0 +1,92 @@
+---
+title: "Figures for BRG1 analysis"
+subtitle: "analysis and visualisation in one script"
+author: "Krutika"
+date: "First version - 2025-09-25; last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: cosmo
+---
+
+
+```{r}
+
+.libPaths()
+rm(list=ls())
+
+
+```
+
+```{r, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(chipenrich)
+library(GenomicFeatures)
+library(ChIPseeker)
+library(cowplot)
+library(RColorBrewer)
+library(ggrepel)
+library(ggplot2)
+library(UpSetR)
+library(dplyr)
+library(ComplexHeatmap)
+library(ggplot2)
+library(tidyr)
+library(tibble)
+library(ggh4x)
+library(ComplexUpset)
+
+
+```
+
+
+
+```{r}
+
+#load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData")
+ load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
+```
+
+```{r}
+diffbind_objs <- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RLERiP, total_counts = dbObj_RPKMnorm, spike_in=dbObj_sacCer3norm, greenlist = dbObj_greenlistnorm)
+
+
+```
+
+
+```{r}
+pdf(paste("dbObj_counts_summit","pca_plot.pdf"), width = 5, height = 5)
+
+dbObj_counts_summit %>% dba.plotPCA(.,attributes = DBA_TREATMENT, score=DBA_SCORE_READS)
+  dev.off()
+```
+
+
+# PCA plots for each normalisation method
+```{r}
+
+for (nm in names(diffbind_objs)){
+  
+  pdf(paste(nm,"pca_plot.pdf"), width = 5, height = 5)
+
+  dba.plotPCA(diffbind_objs[[nm]], attributes = DBA_TREATMENT)
+  dev.off()
+}
+```
+
+```{r}
+for (nm in names(diffbind_objs)){
+  
+
+  dba.plotMA(diffbind_objs[[nm]], attributes = DBA_TREATMENT)
+}
+
+```
+
+```{r}
+sessionInfo()
+```

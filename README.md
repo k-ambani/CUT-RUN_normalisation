@@ -5,21 +5,24 @@ The code that processed the raw files, conducted the differential analysis on th
 
 01_CTCF_dataset  
   - 01_raw_files_processing - workflow used to process raw fastQ files to BAM and peak files.
-  - 02_negative_experiment_analysis -  code to test normalisation methods and code for figure generation*
-  - 03_redistribution_experiment_analysis -  code to test normalisation methods and code for figure generation*
-  - 04_global_shift_experiment_analysis -  code to test normalisation methods and code for figure generation*
+  - 02_creating_comparison_pool - sample metadata construction for DiffBind
+  - 03_negative_experiment_analysis -  code to test normalisation methods and code for figure generation*
+  - 04_redistribution_experiment_analysis -  code to test normalisation methods and code for figure generation*
+  - 05_global_shift_experiment_analysis -  code to test normalisation methods and code for figure generation*
+  - 06_supplementary_material - code for figures in supplementary material
 
 02_ER_dataset  
   - 01_raw_files_processing - workflow used to process raw fastQ files to BAM and peak files.
   - 02_normalisation_methods_testing - code to test normalsiation methods
   - 03_figure_generation - code for figure generation*
+  - 04_supplementary_material - code for figures in supplementary material
 
 03_BRG1_dataset 
 
   - 01_raw_files_processing - workflow to process raw fastQ files to BAM and peak files. 
   - 02_normalisation_method_testing - code to generate scale factors and conduct differential analysis using the normalisation methods  
   - 03_figure_generation - code to generate figures displayed in paper*
-
+  - 04_supplementary_material - code for figures in supplementary material
 
 
 *Note: To render the html files in this repo (particularly to view figures), prepend to the following URL including the https://  _https://html-preview.github.io/?url=_ 

@@ -1,0 +1,310 @@
+---
+title: "Examining unique diff peaks by normalisation method"
+subtitle: "Analysis and visualisation in one script"
+author: "Krutika"
+date: "First version - 2026-07-24; last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: cosmo
+---
+```{r}
+rm(list=ls())
+
+```
+
+```{r, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(GenomicFeatures)
+library(cowplot)
+library(RColorBrewer)
+library(ggrepel)
+library(ggplot2)
+library(circlize)
+library(dplyr)
+library(ComplexHeatmap)
+library(ggplot2)
+library(tidyr)
+library(tibble)
+
+
+```
+
+
+# Loading data
+```{r}
+
+#load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData")
+load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
+
+
+```
+
+```{r}
+diffbind_objs <- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RLERiP, total_counts = dbObj_RPKMnorm, spike_in=dbObj_sacCer3norm, greenlist = dbObj_greenlistnorm)
+
+
+```
+
+
+# Getting values of interest
+```{r}
+# Function to extract MA plot data from diffbind object
+extract_MA_data <- function(diffbind_obj, norm_method_str) {
+  #diffbind_obj <- dbObj_greenlistnorm
+  COUNTS_DF <- diffbind_obj %>% dba.report(., th = 1) %>% as.data.frame()
+  COUNTS_DF <- COUNTS_DF[COUNTS_DF$seqnames %in% paste0("chr",c(1:22,"X","Y")),] # Getting XY and numerical chromosomes only. 
+  samples <- colnames(COUNTS_DF)[7:8] %>% gsub("Conc_", "", .)
+  plot_title <- paste(samples[1], samples[2], sep = " vs ")
+  
+  COUNTS_DF$plot_colour <- "unchanged"
+  COUNTS_DF$plot_colour[COUNTS_DF$Fold > 0 & COUNTS_DF$FDR < 0.05] <- "up"
+  COUNTS_DF$plot_colour[COUNTS_DF$Fold < 0 & COUNTS_DF$FDR < 0.05] <- "down"
+  
+  down_peaks <- sum(COUNTS_DF$plot_colour == "down")
+  up_peaks <- sum(COUNTS_DF$plot_colour == "up")
+  
+  # Calculate loess smoothing
+  loessMod50 <- loess(Fold ~ Conc, data = COUNTS_DF, span = 0.50)
+  COUNTS_DF$loess <- predict(loessMod50)
+  
+  # Add metadata columns
+  COUNTS_DF$norm_method <- norm_method_str
+  COUNTS_DF$plot_title <- plot_title
+  COUNTS_DF$up_peaks <- up_peaks
+  COUNTS_DF$down_peaks <- down_peaks
+  COUNTS_DF$facet_label <- paste(norm_method_str, "| up:", up_peaks, "down:", down_peaks)
+  
+  return(COUNTS_DF)
+}
+
+# Extract data from all normalization methods
+ma_data_list <- list(
+  extract_MA_data(dbObj_RPKMnorm, "Library size"),
+  extract_MA_data(dbObj_RLEbackground, "Background"),
+    extract_MA_data(dbObj_greenlistnorm, "Greenlist"),
+  extract_MA_data(dbObj_RLERiP, "Reads in peak"),
+  extract_MA_data(dbObj_sacCer3norm, "Spike-in")
+)
+
+```
+
+```{r}
+# Combine into one big dataframe
+combined_ma_data <- bind_rows(ma_data_list)
+
+# Set factor order for normalization methods
+combined_ma_data$norm_method <- factor(combined_ma_data$norm_method, 
+                                       levels = combined_ma_data$norm_method %>% unique())
+```
+
+
+```{r}
+# Everything is plotted in this order: "library size", "background, "greenlist", "RiP, "spike-in"
+
+plotting_order <-combined_ma_data$norm_method %>% unique()
+
+```
+
+
+```{r}
+# Create unique peak identifiers
+combined_ma_data$peak_id <- paste(combined_ma_data$seqnames, combined_ma_data$start, combined_ma_data$end, sep = "_")
+
+
+```
+
+```{r}
+
+fdr_wide <- combined_ma_data %>%
+  dplyr::select(peak_id, norm_method, FDR) %>%
+  pivot_wider(id_cols = peak_id, names_from = norm_method, values_from = FDR)
+
+# Keep methods in your established plotting order
+fdr_mat <- as.matrix(fdr_wide[, as.character(plotting_order)])
+rownames(fdr_mat) <- fdr_wide$peak_id
+```
+
+```{r, eval=FALSE}
+# Writing bedfile for deeptools heatmap
+
+deeptools_peaks <- data.frame(peaks = rownames(fdr_mat)) 
+deeptools_peaks <- deeptools_peaks %>% separate(., into = c("chr","start","end"),col = peaks) 
+
+deeptools_peaks$start <- deeptools_peaks$start %>% as.numeric()
+deeptools_peaks$end <- deeptools_peaks$end %>% as.numeric()
+
+deeptools_peaks <- data.frame(
+  chr   = deeptools_peaks$chr,
+  start = deeptools_peaks$start - 1,   # 1-based to 0-based conversion
+  end   = deeptools_peaks$end
+)
+
+write.table(deeptools_peaks,file = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/5.Deeptools_heatmap/bedfile/peaks_to_plot.bed", sep = "\t", quote = FALSE, row.names = FALSE, col.names = FALSE)
+
+```
+
+
+# Plotting by FDR
+```{r}
+
+# Remove peaks that are FDR > 0.5 in every single normalisation method
+# (i.e. never even close to significant anywhere - not informative for
+# the concordance comparison)
+method_names <- as.character(plotting_order)
+
+all_above_0.5 <- rowSums(as.matrix(fdr_mat[, method_names]) > 0.2) == length(method_names)
+
+cat(sprintf("Removing %d of %d peaks (FDR > 0.2 in all %d methods)\n",
+            sum(all_above_0.5), nrow(fdr_mat), length(method_names)))
+
+fdr_mat <- fdr_mat[!all_above_0.5, ]
+```
+
+
+## Heatmap
+```{r, fig.height=10, fig.width=3}
+# Custom breaks
+breaks <- c(0, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1)
+bin_labels <- paste0(head(breaks, -1), "-", breaks[-1])
+bin_midpoints <- head(breaks, -1) + diff(breaks) / 2
+
+# Recreate the default blue-white-red colour ramp, sampled at bin midpoints
+default_ramp <- colorRamp2(c(0, 0.2, 1), c("blue", "white", "red"))
+bin_colors <- default_ramp(bin_midpoints)
+names(bin_colors) <- bin_labels
+
+# Cut the FDR matrix into discrete bins
+fdr_mat_binned <- matrix(
+  cut(fdr_mat, breaks = breaks, labels = bin_labels, include.lowest = TRUE),
+  nrow = nrow(fdr_mat), dimnames = dimnames(fdr_mat)
+)
+bin_index <- cut(fdr_mat, breaks = breaks, labels = FALSE, include.lowest = TRUE)
+
+fdr_mat_mid <- matrix(
+  bin_midpoints[bin_index],
+  nrow = nrow(fdr_mat), dimnames = dimnames(fdr_mat)
+)
+
+# FULL heatmap:
+ht_full <- Heatmap(
+  fdr_mat_binned,
+  name = "FDR",
+  col = bin_colors,
+  show_row_names = FALSE,
+  cluster_columns = FALSE,
+  column_names_side = "top",
+  cluster_rows = hclust(dist(fdr_mat_mid))
+)
+ht_full
+```
+
+
+```{r}
+pdf("./FDR_heatmap.pdf", width=3, height = 10)
+ht_full
+dev.off()
+```
+
+
+```{r}
+breaks <- c(0, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 1)
+bin_labels <- paste0(head(breaks, -1), "-", breaks[-1])
+bin_midpoints <- head(breaks, -1) + diff(breaks) / 2
+
+# Recreate the default blue-white-red colour ramp, sampled at bin midpoints
+default_ramp <- colorRamp2(c(0, 0.2, 1), c("blue", "white", "red"))
+bin_colors <- default_ramp(bin_midpoints)
+names(bin_colors) <- bin_labels
+
+# Cut the FDR matrix into discrete bins
+fdr_mat_binned <- matrix(
+  cut(fdr_mat, breaks = breaks, labels = bin_labels, include.lowest = TRUE),
+  nrow = nrow(fdr_mat), dimnames = dimnames(fdr_mat)
+)
+bin_index <- cut(fdr_mat, breaks = breaks, labels = FALSE, include.lowest = TRUE)
+fdr_mat_mid <- matrix(
+  bin_midpoints[bin_index],
+  nrow = nrow(fdr_mat), dimnames = dimnames(fdr_mat)
+)
+
+
+```
+
+```{r, fig.height=10, fig.width=3}
+# Order rows by row sum of bin midpoints (ascending = most-significant-overall first)
+row_order <- order(rowSums(fdr_mat_mid))
+
+# FULL heatmap:
+ht_full <- Heatmap(
+  fdr_mat_binned,
+  name = "FDR",
+  col = bin_colors,
+  show_row_names = FALSE,
+  cluster_columns = FALSE,
+  column_names_side = "top",
+  cluster_rows = FALSE,
+  row_order = row_order
+)
+ht_full
+
+```
+
+# Plotting by rank order
+```{r}
+# Rank peaks within each normalisation method by FDR
+# (rank 1 = smallest FDR = most significant)
+method_names <- as.character(plotting_order)
+set.seed(10)
+rank_mat <- apply(as.matrix(fdr_wide[, method_names]), 2, rank, ties.method = "random")
+rownames(rank_mat) <- rownames(fdr_wide)
+
+# Remove peaks that are never even close to significant in any method
+# (i.e. rank is in the bottom 80% - least significant - in every method)
+n_peaks <- nrow(rank_mat)
+all_low_rank <- rowSums(rank_mat > 0.10 * n_peaks) == length(method_names)
+cat(sprintf("Removing %d of %d peaks (bottom 80%% by rank in all %d methods). %d peaks used in heatmap. \n",
+            sum(all_low_rank), n_peaks, length(method_names), n_peaks - sum(all_low_rank)))
+rank_mat <- rank_mat[!all_low_rank, ]
+
+
+```
+
+
+## Heatmap by rank
+
+```{r, fig.height=10, fig.width =3}
+
+col_fun <- colorRamp2(
+  c(1, n_peaks),
+  c('white', 'darkgreen')
+)
+
+col_fun <- colorRamp2(
+  c(1, n_peaks),
+  (brewer.pal(9, "YlGn"))[c(1, 9)]  # take only the first and last colour
+)
+
+ht_full <- Heatmap(
+  rank_mat,
+  name = "FDR rank",
+  col = col_fun,
+  show_row_names = FALSE,
+  cluster_columns = FALSE,
+  column_names_side = "top")
+
+
+ht_full
+```
+
+
+
+```{r}
+pdf("./rank_heatmap.pdf", width=3, height = 10)
+ht_full
+dev.off()
+```

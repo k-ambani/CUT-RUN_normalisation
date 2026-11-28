@@ -11,7 +11,6 @@
 #SBATCH --error=logs/greenlist-norm-%j.err
 
 # ── Environment ───────────────────────────────────────────────────────────────
-source /etc/profile.d/modules.sh
 module load deeptools/3.5.0
 module load R/4.2.0
 

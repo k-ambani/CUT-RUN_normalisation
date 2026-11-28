@@ -41,13 +41,13 @@ library(circlize)
 ```{r}
 experiment_results <- list()
 
-#experiment_results[["inflation_factor_2"]] <- readRDS("/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/02.Artificially_inflate_incl_spikein/results/inflation_factor_2/experiment_summary.rds")
+#experiment_results[["inflation_factor_2"]] <- readRDS("/path/to/project/R_analysis_final/02.Artificially_inflate_incl_spikein/results/inflation_factor_2/experiment_summary.rds")
 
-experiment_results[["inflation_factor_5"]] <- readRDS("/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/02.Artificially_inflate_incl_spikein/results/inflation_factor_5/experiment_summary.rds")
+experiment_results[["inflation_factor_5"]] <- readRDS("/path/to/project/R_analysis_final/02.Artificially_inflate_incl_spikein/results/inflation_factor_5/experiment_summary.rds")
 
-experiment_results[["inflation_factor_10"]] <- readRDS("/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/02.Artificially_inflate_incl_spikein/results/inflation_factor_10/experiment_summary.rds")
+experiment_results[["inflation_factor_10"]] <- readRDS("/path/to/project/R_analysis_final/02.Artificially_inflate_incl_spikein/results/inflation_factor_10/experiment_summary.rds")
 
-experiment_results[["inflation_factor_20"]]<- readRDS("/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/02.Artificially_inflate_incl_spikein/results/inflation_factor_20/experiment_summary.rds")
+experiment_results[["inflation_factor_20"]]<- readRDS("/path/to/project/R_analysis_final/02.Artificially_inflate_incl_spikein/results/inflation_factor_20/experiment_summary.rds")
 ```
 
 

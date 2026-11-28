@@ -1,8 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name=unnormalised_bigwigs_deeptools
-#SBATCH -N 1
-#SBATCH --mem=100G
-#SBATCH --cpus-per-task=15
 #SBATCH -t 2:00:00
 #SBATCH --output=DT_bigwigs_heatmap-%j.out
 #SBATCH --error=DT_bigwigs_heatmap-%j.err
@@ -27,15 +24,15 @@ set -xe
 # ------------------------------------------------------------------------
 
 # Directory containing indexed BAM files (must have matching .bam.bai)
-BAM_DIR="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/bam_files/final_bams/hg38"
+BAM_DIR="/path/to/project/results/bam_files/final_bams/hg38"
 
 # Output directory for bigwigs and heatmap
-OUT_DIR="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/results/bw_files/raw_signal"
+OUT_DIR="/path/to/project/results/bw_files/raw_signal"
 
 # BED file of peak regions to plot (e.g. consensus peak set)
-PEAKS_BED="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/03.Deeptools/bedfile/consensus_peakset.bed"
+PEAKS_BED="/path/to/project/results/bedfile/consensus_peakset.bed"
 
-HEATMAP_DIR="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/03.Deeptools/output"
+HEATMAP_DIR="/path/to/project/results/Deeptools/output"
 # Bin size for bigwig generation (bp)
 BIN_SIZE=1
 
@@ -55,63 +52,63 @@ DOWNSTREAM=1000
 BIGWIGS=()
 LABELS=()
 
-# # ------------------------------------------------------------------------
-# # Step 1: Generate unnormalised bigwigs
-# # ------------------------------------------------------------------------
-# echo "=== Generating unnormalised bigwigs ==="
-# cd $BAM_DIR
+# ------------------------------------------------------------------------
+# Step 1: Generate unnormalised bigwigs
+# ------------------------------------------------------------------------
+echo "=== Generating unnormalised bigwigs ==="
+cd $BAM_DIR
 # 
-# for bam in *bam; do
-#   echo $bam
-#   sample_name=$(basename "${bam}" _Homo_sapiens_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam)
-#   sample_name=$(echo "$sample_name" | sed -E 's/20160.*HsDm_CTCF_//; s/CTCF_//')
-#   bw_out="${OUT_DIR}/${sample_name}_raw.bw"
-# 
-#   echo "Processing ${sample_name}..."
-# 
-#   bamCoverage \
-#     --bam "${BAM_DIR}/${bam}" \
-#     --outFileName "${bw_out}" \
-#     --normalizeUsing None \
-#     --binSize "${BIN_SIZE}" \
-#     --numberOfProcessors "${THREADS}" \
-#     --extendReads
-# 
-#   BIGWIGS+=("${bw_out}")
-#   LABELS+=("${sample_name}")
-#   echo $BIGWIGS
-#   echo $LABELS
-# done
-# 
-# echo "Done. Bigwigs written to ${OUT_DIR}/bigwigs/"
-# 
-# # ------------------------------------------------------------------------
-# # Step 2: Compute matrix over peak regions
-# # ------------------------------------------------------------------------
-# 
-# echo "=== Computing matrix ==="
+for bam in *bam; do
+   echo $bam
+   sample_name=$(basename "${bam}" _Homo_sapiens_OTHER_hg38_nodm6_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam)
+   sample_name=$(echo "$sample_name" | sed -E 's/20160.*HsDm_CTCF_//; s/CTCF_//')
+   bw_out="${OUT_DIR}/${sample_name}_raw.bw"
+ 
+   echo "Processing ${sample_name}..."
+ 
+   bamCoverage \
+     --bam "${BAM_DIR}/${bam}" \
+     --outFileName "${bw_out}" \
+     --normalizeUsing None \
+     --binSize "${BIN_SIZE}" \
+     --numberOfProcessors "${THREADS}" \
+     --extendReads
+
+   BIGWIGS+=("${bw_out}")
+   LABELS+=("${sample_name}")
+   echo $BIGWIGS
+   echo $LABELS
+ done
+ 
+echo "Done. Bigwigs written to ${OUT_DIR}/bigwigs/"
+ 
+# ------------------------------------------------------------------------
+# Step 2: Compute matrix over peak regions
+# ------------------------------------------------------------------------
+
+echo "=== Computing matrix ==="
 
 MATRIX_OUT="${OUT_DIR}/matrix_raw.gz"
 # 
-# computeMatrix reference-point \
-#   --scoreFileName "${BIGWIGS[@]}" \
-#   --regionsFileName "${PEAKS_BED}" \
-#   --referencePoint center \
-#   --upstream "${UPSTREAM}" \
-#   --downstream "${DOWNSTREAM}" \
-#   --binSize "${BIN_SIZE}" \
-#   --numberOfProcessors "${THREADS}" \
-#   --samplesLabel "${LABELS[@]}" \
-#   --outFileName "${MATRIX_OUT}" \
-#   --missingDataAsZero
-# 
-# echo "Matrix written to ${MATRIX_OUT}"
-# 
-# # ------------------------------------------------------------------------
-# # Step 3: Plot heatmap
-# # ------------------------------------------------------------------------
-# 
-# echo "=== Plotting heatmap ==="
+computeMatrix reference-point \
+   --scoreFileName "${BIGWIGS[@]}" \
+   --regionsFileName "${PEAKS_BED}" \
+   --referencePoint center \
+   --upstream "${UPSTREAM}" \
+   --downstream "${DOWNSTREAM}" \
+   --binSize "${BIN_SIZE}" \
+   --numberOfProcessors "${THREADS}" \
+   --samplesLabel "${LABELS[@]}" \
+   --outFileName "${MATRIX_OUT}" \
+   --missingDataAsZero
+
+echo "Matrix written to ${MATRIX_OUT}"
+ 
+# ------------------------------------------------------------------------
+# Step 3: Plot heatmap
+# ------------------------------------------------------------------------
+ 
+echo "=== Plotting heatmap ==="
 
 HEATMAP_OUT="${HEATMAP_DIR}/heatmap_raw_signal.pdf"
 

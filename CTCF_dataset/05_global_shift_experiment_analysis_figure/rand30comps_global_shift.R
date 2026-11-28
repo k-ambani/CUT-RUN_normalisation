@@ -8,7 +8,7 @@ rm(list=ls())
 # Loading data
 #---------------------------------------#
 
-sample_information_randn <- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_randn.rds")
+sample_information_randn <- readRDS("/path/to/project/R_analysis_final/02.Sample_information/data/sample_information_randn.rds")
 
 
 
@@ -272,7 +272,7 @@ pval_threshold <- 0.05
 for(frac_inflate in c(0.7)){
 #  for(inflation_factor_choose in c(2,5,10,20)){
   for(inflation_factor_choose in c(5,10,20)){    
-    working_dir <-  paste("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/04.Global_shift/results/frac_inflate_",
+    working_dir <-  paste("/path/to/project/R_analysis_response_to_reviewers/04.Global_shift/results/frac_inflate_",
                           frac_inflate,"/inflation_factor_",as.character(inflation_factor_choose),sep="")
     
     

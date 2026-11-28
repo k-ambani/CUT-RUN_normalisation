@@ -34,7 +34,7 @@ library(circlize)
 ```{r}
 ### loading data
 
-diff_nums_rec <- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/05.Negative_experiment/data/diff_nums_rec.rds")
+diff_nums_rec <- readRDS("path/to/project/R_analysis_final/05.Negative_experiment/data/diff_nums_rec.rds")
 
 ```
 

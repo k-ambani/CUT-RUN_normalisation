@@ -14,8 +14,8 @@ module load samtools/1.9
 set -euo pipefail
 
 # ── Directories ───────────────────────────────────────────────────────────────
-working_dir="path/to/2017_Skene_Henikoff"
-scratch_dir="path/to/scratch/2017_Skene_Henikoff"
+working_dir="path/to/project"
+scratch_dir="path/to/scratch"
 
 summary_out_dir="$working_dir/results"
 

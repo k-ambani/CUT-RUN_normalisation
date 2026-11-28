@@ -15,8 +15,7 @@ rm(list=ls())
 #---------------------------------------#
 
 #loading sample_information workspace (spike-in and greenlist scale factors included )
-#load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_workspace.RData")
-sample_information_randn <- readRDS("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/02.Sample_information/data/sample_information_randn.rds")
+sample_information_randn <- readRDS("path/to/project/R_analysis_final/02.Sample_information/data/sample_information_randn.rds")
 #---------------------------------------#
 # Initialising
 #---------------------------------------#
@@ -119,7 +118,7 @@ dbObj_greenlist_analyse_list <- lapply(dbObj_greenlist_contrast_list, dba.analyz
 
 
 
-save.image(file="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/05.Negative_experiment/data/diffbind_analyse_workspace.RData")
+save.image(file="path/to/project/R_analysis_final/05.Negative_experiment/data/diffbind_analyse_workspace.RData")
 
 
 #---------------------------------------#
@@ -188,5 +187,5 @@ for (i in 1:nruns){
 
 
 
-saveRDS(diff_nums_rec, "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_response_to_reviewers/05.Negative_experiment/data/diff_nums_rec.rds")
+saveRDS(diff_nums_rec, "path/to/project/R_analysis_final/05.Negative_experiment/data/diff_nums_rec.rds")
 

@@ -47,7 +47,7 @@ norm_methods <- c("LS", "RLE_RiP", "RLE_BG","greenlist") #Excluding greenlist
 experiment_metrics <- data.frame(rand_run = 1:30)
 for(frac_inflate in c(0.1,0.5,0.7)){
   for(inflation_factor_choose in c(2,5,10,20)){
-    experiment_summary_df <- readRDS(paste("/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/06.Global_shift/results/frac_inflate_",frac_inflate,"/inflation_factor_",inflation_factor_choose,"/experiment_summary.rds",sep=""))
+    experiment_summary_df <- readRDS(paste("/path/to/project/R_analysis_final/06.Global_shift/results/frac_inflate_",frac_inflate,"/inflation_factor_",inflation_factor_choose,"/experiment_summary.rds",sep=""))
  experiment_summary_list[[as.character(frac_inflate)]][[as.character(inflation_factor_choose)]] <-experiment_summary_df     
 
        for(norm_method in norm_methods){

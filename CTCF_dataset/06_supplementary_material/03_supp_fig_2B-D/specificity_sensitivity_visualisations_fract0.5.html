@@ -1507,7 +1507,7 @@ norm_methods &lt;- c(&quot;LS&quot;, &quot;RLE_RiP&quot;, &quot;RLE_BG&quot;,&qu
 experiment_metrics &lt;- data.frame(rand_run = 1:30)
 for(frac_inflate in frac_inflate_num){
   for(inflation_factor_choose in c(2,5,10,20)){
-    experiment_summary_df &lt;- readRDS(paste(&quot;/data/projects/punim2745/03.CUTRUN_normalisation_KA/Henikoff_simulations/R_analysis_final/06.Global_shift/results/frac_inflate_&quot;,frac_inflate,&quot;/inflation_factor_&quot;,inflation_factor_choose,&quot;/experiment_summary.rds&quot;,sep=&quot;&quot;))
+    experiment_summary_df &lt;- readRDS(paste(&quot;/path/to/project/R_analysis_final/06.Global_shift/results/frac_inflate_&quot;,frac_inflate,&quot;/inflation_factor_&quot;,inflation_factor_choose,&quot;/experiment_summary.rds&quot;,sep=&quot;&quot;))
  experiment_summary_list[[as.character(frac_inflate)]][[as.character(inflation_factor_choose)]] &lt;-experiment_summary_df     
 
        for(norm_method in norm_methods){

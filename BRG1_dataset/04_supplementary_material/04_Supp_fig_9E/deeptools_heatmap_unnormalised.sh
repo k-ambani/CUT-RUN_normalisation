@@ -1,8 +1,5 @@
 #!/bin/bash
 #SBATCH --job-name=unnormalised_bigwigs_deeptools
-#SBATCH -N 1
-#SBATCH --mem=40G
-#SBATCH --cpus-per-task=15
 #SBATCH -t 10:00:00
 #SBATCH --output=DT_bigwigs_heatmap-%j.out
 #SBATCH --error=DT_bigwigs_heatmap-%j.err
@@ -27,15 +24,15 @@ set -xe
 # ------------------------------------------------------------------------
 
 # Directory containing indexed BAM files (must have matching .bam.bai)
-BAM_DIR="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/bam_files/final_bams/hg38"
+BAM_DIR="/path/to/project/results/bam_files/final_bams/hg38"
 
 # Output directory for bigwigs and heatmap
-OUT_DIR="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/bw_files/raw_signal"
+OUT_DIR="/path/to/project/results/bw_files/raw_signal"
 
 # BED file of peak regions to plot (e.g. consensus peak set)
-PEAKS_BED="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/5.Deeptools_heatmap/bedfile/peaks_to_plot.bed"
+PEAKS_BED="/path/to/project/R_analysis_reviewerresponse/5.Deeptools_heatmap/bedfile/peaks_to_plot.bed"
 
-HEATMAP_DIR="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/5.Deeptools_heatmap/output"
+HEATMAP_DIR="/path/to/project/R_analysis_reviewerresponse/5.Deeptools_heatmap/output"
 # Bin size for bigwig generation (bp)
 BIN_SIZE=1
 
@@ -46,20 +43,9 @@ THREADS=8
 UPSTREAM=1000
 DOWNSTREAM=1000
 
-# Sample BAM files - edit this list to match your samples
-# BAMS=(
-# "001-MCF7-Par-DMSO-R1-BRG1-native_S11_hg38_nosacCer3_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam",
-# "002-MCF7-Par-DMSO-R2-BRG1-native_S22_hg38_nosacCer3_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam",
-# "003-MCF7-Par-Abema-R1-BRG1-native_S33_hg38_nosacCer3_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam",
-# "004-MCF7-Par-Abema-R2-BRG1-native_S44_hg38_nosacCer3_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam",
-# "018-MCF7-Par-DMSO-R1-Rabbit-IgG-native_S9_hg38_nosacCer3_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam"
-# )
-
-
 # ------------------------------------------------------------------------
 # Setup
 # ------------------------------------------------------------------------
-
 
 BIGWIGS=()
 LABELS=()

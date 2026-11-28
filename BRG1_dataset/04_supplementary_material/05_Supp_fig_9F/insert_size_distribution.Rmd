@@ -23,7 +23,7 @@ rm(list=ls())
 library(ggplot2)
 library(dplyr)
 
-files <- list.files("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/bam_files/final_bams/hg38/insert_size_dist", pattern = "_insert_size_metrics.txt$", full.names = TRUE)
+files <- list.files("/path/to/project/results/bam_files/final_bams/hg38/insert_size_dist", pattern = "_insert_size_metrics.txt$", full.names = TRUE)
 
 read_hist <- function(f) {
   lines <- readLines(f)

@@ -33,8 +33,7 @@ library(ggplot2)
 ## Loading data
 ```{r}
 
-#load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData")
-load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
+load("/path/to/project/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
 ```
 
 ## Useful function

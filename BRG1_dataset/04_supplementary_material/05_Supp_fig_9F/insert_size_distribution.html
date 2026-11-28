@@ -1605,7 +1605,7 @@ library(dplyr)</code></pre>
 <pre><code>## The following objects are masked from &#39;package:base&#39;:
 ## 
 ##     intersect, setdiff, setequal, union</code></pre>
-<pre class="r"><code>files &lt;- list.files(&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/bam_files/final_bams/hg38/insert_size_dist&quot;, pattern = &quot;_insert_size_metrics.txt$&quot;, full.names = TRUE)
+<pre class="r"><code>files &lt;- list.files(&quot;/path/to/project/results/bam_files/final_bams/hg38/insert_size_dist&quot;, pattern = &quot;_insert_size_metrics.txt$&quot;, full.names = TRUE)
 
 read_hist &lt;- function(f) {
   lines &lt;- readLines(f)

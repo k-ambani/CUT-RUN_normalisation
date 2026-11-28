@@ -1615,8 +1615,7 @@ library(tidyr)
 library(tibble)
 library(ggh4x)
 library(ComplexUpset)</code></pre>
-<pre class="r"><code>#load(&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData&quot;)
- load(&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData&quot;)</code></pre>
+<pre class="r"><code>load(&quot;/path/to/project/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData&quot;)</code></pre>
 <pre class="r"><code>diffbind_objs &lt;- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RLERiP, total_counts = dbObj_RPKMnorm, spike_in=dbObj_sacCer3norm, greenlist = dbObj_greenlistnorm)</code></pre>
 <div id="pca-plots-for-each-normalisation-method" class="section level1">
 <h1>PCA plots for each normalisation method</h1>

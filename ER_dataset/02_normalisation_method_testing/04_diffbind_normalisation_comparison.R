@@ -14,7 +14,7 @@ rm(list=ls())
 # Bam files not filtered
 #-------------------------------------------------------------------------------------------------------#
 
-working_dir <-  "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/"
+working_dir <-  "/path/to/project"
 
 #loading sample_information workspace
 sample_information <- readRDS(file=paste(working_dir,"/R_analysis/1.Sample_information/data/sample_information.rds",sep=""))

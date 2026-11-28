@@ -6,9 +6,7 @@
 
 #SBATCH --job-name=bam_bw_peaks_summary
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=15
 #SBATCH --time=4:00:00
-#SBATCH --mem=20G
 #SBATCH --mail-user=user@institute.edu
 #SBATCH --mail-type=ALL
 #SBATCH --partition=rhel_short

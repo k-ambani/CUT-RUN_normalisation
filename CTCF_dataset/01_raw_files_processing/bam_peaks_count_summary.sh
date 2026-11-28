@@ -1,9 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=bam-summary
 #SBATCH -N 1
-#SBATCH --cpus-per-task=15
 #SBATCH -t 4:00:00
-#SBATCH --mem=20G
 #SBATCH --mail-type=ALL
 #SBATCH --partition=your_partition        # adjust for your cluster
 #SBATCH --output=logs/bam-summary-%j.out

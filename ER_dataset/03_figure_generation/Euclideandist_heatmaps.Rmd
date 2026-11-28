@@ -27,7 +27,7 @@ library(ggplot2)
 ## Loading data
 ```{r}
 
-load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/ER_dataset/3.realign_to_human_yeast/R_analysis/2.Diffbind/data/diffbind_analyse_workspace_2v2.RData")
+load("/path/to/project/R_analysis/2.Diffbind/data/diffbind_analyse_workspace_2v2.RData")
 
 ```
 

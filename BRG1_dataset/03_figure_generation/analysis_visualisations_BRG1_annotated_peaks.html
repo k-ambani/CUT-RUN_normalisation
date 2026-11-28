@@ -1610,8 +1610,7 @@ library(ggh4x)
 library(qs)</code></pre>
 <div id="load-data" class="section level1">
 <h1>Load data</h1>
-<pre class="r"><code>#load(&quot;/path/to/project/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData&quot;)
- load(&quot;/path/to/project/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData&quot;)</code></pre>
+<pre class="r"><code>load(&quot;/path/to/project/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData&quot;)</code></pre>
 <pre class="r"><code>diffbind_objs &lt;- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RLERiP, total_counts = dbObj_RPKMnorm, spike_in=dbObj_sacCer3norm, greenlist = dbObj_greenlistnorm)</code></pre>
 </div>
 <div id="annotate-peak-function" class="section level1">
@@ -1620,9 +1619,9 @@ library(qs)</code></pre>
 # using gencode v35 basic as annotations. Found out that TxDb.Hsapiens.UCSC.hg38.knownGene is actually one of the latest gencode version v39 at this point. And this will keep updating. good to keep everything consistent and keep at v35
 #txdb_hg38_basic &lt;- makeTxDbFromGFF(file = &quot;/researchers/antonio.ahn/resources/GTF_files/gencode.v36.basic.annotation.gtf&quot;, format = &quot;gtf&quot;)
 #txdb_hg38 &lt;- TxDb.Hsapiens.UCSC.hg38.knownGene
-txdb_hg38  &lt;- makeTxDbFromGFF(file = &quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/resources/gencode_annotations/gencode.v35.basic.annotation.gtf&quot;, format = &quot;gtf&quot;)
+txdb_hg38  &lt;- makeTxDbFromGFF(file = &quot;/path/to/project/resources/gencode_annotations/gencode.v35.basic.annotation.gtf&quot;, format = &quot;gtf&quot;)
 
-load(&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/resources/biomaRt_gene_conv/mart_aug2020.RData&quot;)</code></pre>
+load(&quot;/path/to/project/resources/biomaRt_gene_conv/mart_aug2020.RData&quot;)</code></pre>
 <pre class="r"><code># change the ChIPSeeker annotations to maker smaller groups
 # for example, there is 1st Exon and Other Exon for ChIpseekers default annotations. I just want these to be labelled &quot;Exon&quot;
 

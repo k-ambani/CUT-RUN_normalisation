@@ -34,8 +34,7 @@ library(qs)
 # Load data
 ```{r}
 
-#load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData")
- load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
+ load("/path/to/project/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
 
 ```
 
@@ -54,9 +53,9 @@ diffbind_objs <- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RL
 # using gencode v35 basic as annotations. Found out that TxDb.Hsapiens.UCSC.hg38.knownGene is actually one of the latest gencode version v39 at this point. And this will keep updating. good to keep everything consistent and keep at v35
 #txdb_hg38_basic <- makeTxDbFromGFF(file = "/researchers/antonio.ahn/resources/GTF_files/gencode.v36.basic.annotation.gtf", format = "gtf")
 #txdb_hg38 <- TxDb.Hsapiens.UCSC.hg38.knownGene
-txdb_hg38  <- makeTxDbFromGFF(file = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/resources/gencode_annotations/gencode.v35.basic.annotation.gtf", format = "gtf")
+txdb_hg38  <- makeTxDbFromGFF(file = "/path/to/project/resources/gencode_annotations/gencode.v35.basic.annotation.gtf", format = "gtf")
 
-load("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/resources/biomaRt_gene_conv/mart_aug2020.RData")
+load("/path/to/project/resources/biomaRt_gene_conv/mart_aug2020.RData")
 ```
 
 ```{r warning=FALSE, message=FALSE}
@@ -313,7 +312,7 @@ bubble_plot_df <- rbind(bubble_plot_analysis[[sep]],bubble_plot_df)
 
 
 ```{r, eval=FALSE}
-qsave(chipenrich_analysis,"/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/chipenrich_results.qs")
+qsave(chipenrich_analysis,"/path/to/project/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/chipenrich_results.qs")
 
 ```
 

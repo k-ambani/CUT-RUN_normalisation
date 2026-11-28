@@ -1610,8 +1610,8 @@ library(ggh4x)
 library(qs)</code></pre>
 <div id="load-data" class="section level1">
 <h1>Load data</h1>
-<pre class="r"><code>#load(&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData&quot;)
- load(&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData&quot;)</code></pre>
+<pre class="r"><code>#load(&quot;/path/to/project/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/diffbind_analyse_workspace_2v2.RData&quot;)
+ load(&quot;/path/to/project/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData&quot;)</code></pre>
 <pre class="r"><code>diffbind_objs &lt;- list(Background = dbObj_RLEbackground, Reads_in_peak = dbObj_RLERiP, total_counts = dbObj_RPKMnorm, spike_in=dbObj_sacCer3norm, greenlist = dbObj_greenlistnorm)</code></pre>
 </div>
 <div id="annotate-peak-function" class="section level1">
@@ -1900,7 +1900,7 @@ dev.off()</code></pre>
 <pre><code>## [1] &quot;greenlist_up_nonprom_peaks&quot;</code></pre>
 <pre><code>## [1] &quot;greenlist_down_prom_peaks&quot;</code></pre>
 <pre><code>## [1] &quot;greenlist_down_nonprom_peaks&quot;</code></pre>
-<pre class="r"><code>qsave(chipenrich_analysis,&quot;/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/chipenrich_results.qs&quot;)</code></pre>
+<pre class="r"><code>qsave(chipenrich_analysis,&quot;/path/to/project/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/data/chipenrich_results.qs&quot;)</code></pre>
 <pre class="r"><code>bubble_plot_df$binding_loc &lt;- factor(bubble_plot_df$binding_loc,levels=bubble_plot_df$binding_loc %&gt;% unique)
 bubble_plot_df &lt;- bubble_plot_df %&gt;% separate(binding_loc,into = c(&quot;Norm_method&quot;,&quot;direction&quot;,&quot;location&quot;),sep=&quot;_&quot;, remove = FALSE)
 bubble_plot_df$feature &lt;- paste(bubble_plot_df$direction,bubble_plot_df$location,sep=&quot;_&quot;)

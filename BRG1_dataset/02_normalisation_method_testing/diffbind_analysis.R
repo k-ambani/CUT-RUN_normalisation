@@ -15,7 +15,7 @@ rm(list=ls())
 # Creating sample information
 #-------------------------------------------------------------------------------------------------------#
 
-working_dir <- "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates"
+working_dir <- "/path/to/project"
 ### -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # bam files directory
 hg38_bamReads_dir <- file.path(
@@ -33,7 +33,7 @@ hg38_bamReads_dir <- hg38_bamReads_dir[index]
 
 ### -----------------------------------------------------------------------------------------------------------------------------------------------------------------
 # peaks
-peaks_dir = "/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/macs2/with_input/macs2_q0.05/narrowPeak"
+peaks_dir = "/path/to/project/results/macs2/with_input/macs2_q0.05/narrowPeak"
 # Peaks directory
 Peaks_dir_macs2_with_input <- file.path(
   paste(peaks_dir),
@@ -47,10 +47,10 @@ Peaks_dir_macs2_with_input <- file.path(
 # check peaks and bam samples are in the same order
 peak_names <- Peaks_dir_macs2_with_input %>%
   gsub("_peaks.narrowPeak", "", .) %>%
-  gsub("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/macs2/with_input/macs2_q0.05/narrowPeak/", "", .)
+  gsub("/path/to/project/results/macs2/with_input/macs2_q0.05/narrowPeak/", "", .)
 
 bam_names <- hg38_bamReads_dir %>%
-  gsub("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/results/bam_files/final_bams/hg38/", "", .) %>%
+  gsub("/path/to/project/results/bam_files/final_bams/hg38/", "", .) %>%
   gsub("_chrmrm_blrm_duprm_unmappedrm_multimaprm.bam", "", .)
 
 # same order, same name
@@ -107,7 +107,7 @@ sample_information <- full_join(sample_information,summary_bam_counts)
 #---------------------------------------#
 # Greenlist norm factors
 #---------------------------------------#
-greenlist<- read.table("/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/greenlist_normfacs/glist_sizeFactors.tsv", sep = '\t', header = TRUE) %>% as.data.frame()
+greenlist<- read.table("/path/to/project/R_analysis/5.Diffbind_comparisons_greenlist_normalisation_incl/greenlist_normfacs/glist_sizeFactors.tsv", sep = '\t', header = TRUE) %>% as.data.frame()
 sample_df <- data.frame(sample = rownames(greenlist))
 rownames(greenlist) = 1:4
 
@@ -178,5 +178,5 @@ dbObj_sacCer3norm <- dba.normalize(dbObj_counts_summit, normalize = sample_infor
   
   
   
-save.image(file="/data/gpfs/projects/punim2745/03.CUTRUN_normalisation_KA/20241230_BRG1_with_replicates/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
+save.image(file="/path/to/project/R_analysis_reviewerresponse/1.Diffbind_analysis/data/diffbind_analyse_workspace_2v2.RData")
 

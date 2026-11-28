@@ -1,25 +1,19 @@
 #!/bin/bash
 #SBATCH --job-name=bam_bw_peaks_summary-job
-#SBATCH -N 1
-#SBATCH --cpus-per-task=15
 #SBATCH -t 4:00:00
-#SBATCH --mem=20G
-#SBATCH --mail-user=krutika.ambani@petermac.org
 #SBATCH --mail-type=all
 #SBATCH --partition=rhel_short
 #SBATCH --output=bam_bw_peaks_summary-%j.out
 #SBATCH --error=bam_bw_peaks_summary-%j.err
-#SBATCH --container /config/spack/containers/centos7/container.sif
 
 # saved as bam_bw_peaks_summary.sh in scripts folder. 
 
 set -xe
-source /etc/profile.d/modules.sh
 
 module load samtools/1.9
 
 
-working_dir=/researchers/krutika.ambani/Goel_lab_members/Krutika_Ambani/CnR_Normalisation_paper/goel_lab_datasets/20241230_BRG1_with_replicates
+working_dir=/path/to/project
 
 summary_out_dir=$working_dir/results
 

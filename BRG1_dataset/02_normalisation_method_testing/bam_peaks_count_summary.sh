@@ -18,7 +18,7 @@ working_dir=/path/to/project
 summary_out_dir=$working_dir/results
 
 
-bam_hg38_sacCer3_initial=/scratch/users/kambani/Goel_lab_members
+bam_hg38_sacCer3_initial=/path/to/scratch
 bam_hg38_final=$working_dir/results/bam_files/final_bams/hg38
 bam_sacCer3_final=$working_dir/results/bam_files/final_bams/sacCer3
 bam_hg38_intermediate=$bam_hg38_sacCer3_initial/hg38

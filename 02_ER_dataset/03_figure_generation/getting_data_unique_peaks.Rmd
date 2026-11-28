@@ -1,0 +1,107 @@
+---
+title: "Getting diff peaks unique to library size and background that aren't in spike-in methods"
+subtitle: "getting associated genes"
+author: "Krutika"
+date: "Last updated on `r Sys.Date()`"
+output:
+  html_document:
+    toc: true
+    toc_float: true
+    code_folding: hide
+    theme: cosmo
+---
+
+
+# Prep
+
+```{r}
+rm(list=ls())
+```
+
+```{r, message=FALSE}
+library(rtracklayer)
+library(tidyverse)
+library(DiffBind)
+library(GenomicFeatures)
+library(GenomicRanges)
+library(RColorBrewer)
+library(ggrepel)
+library(ggplot2)
+library(UpSetR)
+library(dplyr)
+library(tidyr)
+library(tibble)
+```
+
+
+## Loading data
+```{r}
+
+load("/path/to/project/R_analysis/2.Diffbind/data/diffbind_analyse_workspace_2v2.RData")
+```
+
+
+
+## Getting peaks of interest
+```{r}
+
+padj_threshold <- 0.05
+
+get_sig_gr <- function(dba_obj, padj = padj_threshold) {
+  #dba_obj = dbObj_RLEbackground_list[[1]]
+  gr <- dba.report(dba_obj, th = padj)
+  gr[seqnames(gr) %in% paste0("chr", c(1:22, "X", "Y"))]
+}
+
+n_comparisons <- length(dbObj_RLEbackground_list)  # should be 6
+
+peak_results <- vector("list", n_comparisons)
+
+for (i in seq_len(n_comparisons)) {
+
+  bg_gr      <- get_sig_gr(dbObj_RLEbackground_list[[i]], padj_threshold)
+  rpkm_gr    <- get_sig_gr(dbObj_RPKMnorm_list[[i]],      padj_threshold)
+  dm6_gr     <- get_sig_gr(dbObj_dm6norm_list[[i]],       padj_threshold)
+  sacCer3_gr <- get_sig_gr(dbObj_sacCer3norm_list[[i]],   padj_threshold)
+
+  union_bg_rpkm     <- GenomicRanges::reduce(append(bg_gr, rpkm_gr),     ignore.strand = TRUE)
+  union_dm6_sacCer3 <- GenomicRanges::reduce(append(dm6_gr, sacCer3_gr), ignore.strand = TRUE)
+
+  peak_results[[i]] <- subsetByOverlaps(union_bg_rpkm, union_dm6_sacCer3, invert = TRUE)
+}
+
+```
+
+
+
+# Saving peak set
+```{r}
+
+# Give each comparison a name for the output file — adjust to match your actual comparisons
+comparison_names <- names(dbObj_RLEbackground_list)
+if (is.null(comparison_names)) {
+  comparison_names <- paste0("comparison", seq_len(n_comparisons))
+}
+
+for (i in seq_len(n_comparisons)) {
+
+
+  comparison_name <- sample_information[rand_combos_2[i, ] %>% unlist, "Factor"] %>%
+    unique() %>%
+    paste(collapse = "_")
+  result_df <- as.data.frame(peak_results[[i]])
+
+  out_file <- paste0("./peaksets/",comparison_name, "_bg_rpkm_not_dm6_sacCer3.bed")
+
+  write.table(
+    result_df[, c("seqnames", "start", "end", "strand")],
+    file      = out_file,
+    sep       = "\t",
+    quote     = FALSE,
+    row.names = FALSE,
+    col.names = FALSE
+  )
+}
+```
+
+<!-- This peakset was uploaded onto https://dbtoolkit.cistrome.org/ to the final panel "What factors have a significant binding overlap with your peak set?" and the table of results were saved.  -->
